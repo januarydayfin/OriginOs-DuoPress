@@ -58,8 +58,8 @@ sealed interface MenuEditorIntent {
     data class SearchApps(val query: String) : MenuEditorIntent
     data class PickApp(val packageName: String) : MenuEditorIntent
     data class PickSpecial(val id: String) : MenuEditorIntent
-    data class RemoveAt(val index: Int) : MenuEditorIntent
-    data class Move(val from: Int, val to: Int) : MenuEditorIntent
+    data class RemoveAt(val index: Int, val expectedRaw: List<String>) : MenuEditorIntent
+    data class Move(val from: Int, val to: Int, val expectedRaw: List<String>) : MenuEditorIntent
     data object Preview : MenuEditorIntent
 }
 
@@ -114,21 +114,23 @@ class MenuEditorViewModel(
                 }
             }
             MenuEditorIntent.ReloadApps -> if (current.picker == MenuPicker.Apps) loadApps()
-            is MenuEditorIntent.SearchApps -> if (current.picker == MenuPicker.Apps) {
-                mutableState.update { it.copy(query = intent.query) }
+            is MenuEditorIntent.SearchApps -> if (current.picker == MenuPicker.Apps && intent.query != current.query) {
+                mutableState.update { it.copy(query = intent.query, visibleApps = emptyList()) }
                 searchApps()
             }
-            is MenuEditorIntent.PickApp -> if (current.picker == MenuPicker.Apps &&
+            is MenuEditorIntent.PickApp -> if (current.picker == MenuPicker.Apps && !current.loadingApps &&
                 current.visibleApps.any { it.packageName == intent.packageName }
             ) {
                 save(MenuEdit.Add("app:${intent.packageName}"))
             }
             is MenuEditorIntent.PickSpecial ->
                 if (current.picker == MenuPicker.Specials && intent.id in menuSpecialIds) save(MenuEdit.Add(intent.id))
-            is MenuEditorIntent.RemoveAt ->
-                if (current.picker == MenuPicker.None) save(MenuEdit.RemoveAt(intent.index))
-            is MenuEditorIntent.Move ->
-                if (current.picker == MenuPicker.None) save(MenuEdit.Move(intent.from, intent.to))
+            is MenuEditorIntent.RemoveAt -> if (current.picker == MenuPicker.None) {
+                save(MenuEdit.RemoveAt(intent.index, intent.expectedRaw))
+            }
+            is MenuEditorIntent.Move -> if (current.picker == MenuPicker.None) {
+                save(MenuEdit.Move(intent.from, intent.to, intent.expectedRaw))
+            }
             MenuEditorIntent.Preview -> if (current.previewEnabled && current.picker == MenuPicker.None) {
                 mutableState.update {
                     it.copy(
@@ -221,14 +223,10 @@ class MenuEditorViewModel(
         mutableState.update { it.copy(saving = true, editResult = null, editFailed = false) }
         viewModelScope.launch {
             try {
-                val (result, latest) = withContext(dispatcher) {
-                    val result = repository.editMenu(edit)
-                    result to if (result == MenuEditResult.Applied) repository.snapshot().menuItems else null
-                }
+                val result = withContext(dispatcher) { repository.editMenu(edit) }
                 mutableState.update {
                     val closePicker = result == MenuEditResult.Applied && edit is MenuEdit.Add
                     it.copy(
-                        menuItems = latest ?: it.menuItems,
                         picker = if (closePicker) MenuPicker.None else it.picker,
                         query = if (closePicker) "" else it.query,
                         visibleApps = if (closePicker) emptyList() else it.visibleApps,

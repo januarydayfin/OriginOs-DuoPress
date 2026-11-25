@@ -131,12 +131,13 @@ internal fun ActionSheet(
         val screenHeight = maxHeight
         AnimatedVisibility(
             visibleState = visibility,
-            modifier = Modifier.align(Alignment.BottomCenter),
+            modifier = Modifier.align(Alignment.BottomCenter)
+                .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top)),
             enter = slideInVertically(animationSpec = tween(260, easing = LinearOutSlowInEasing)) { it },
             exit = slideOutVertically(animationSpec = tween(220, easing = FastOutLinearInEasing)) { it },
         ) {
             Surface(
-                modifier = Modifier.fillMaxWidth().heightIn(max = screenHeight),
+                modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
                 tonalElevation = 6.dp,
             ) {

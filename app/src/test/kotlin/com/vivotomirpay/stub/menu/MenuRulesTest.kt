@@ -25,11 +25,12 @@ class MenuRulesTest {
 
     @Test
     fun removeFinalItemRetainsEmptyMenu() {
+        val raw = listOf("special:camera")
         assertEquals(
             MenuEditResult.Applied to emptyList<String>(),
-            edit(listOf("special:camera"), MenuEdit.RemoveAt(0)),
+            edit(raw, MenuEdit.RemoveAt(0, raw)),
         )
-        assertEquals(MenuEditResult.NoChange to emptyList<String>(), edit(emptyList(), MenuEdit.RemoveAt(0)))
+        assertEquals(MenuEditResult.NoChange to emptyList<String>(), edit(emptyList(), MenuEdit.RemoveAt(0, emptyList())))
     }
 
     @Test
@@ -37,11 +38,11 @@ class MenuRulesTest {
         val raw = listOf(" special:torch ", "", "special:menu", "special:camera", "special:camera")
         val moved = listOf("", "special:menu", "special:camera", " special:torch ", "special:camera")
 
-        assertEquals(MenuEditResult.Applied to moved, edit(raw, MenuEdit.Move(0, 3)))
-        assertEquals(MenuEditResult.Applied to moved.dropLast(1), edit(moved, MenuEdit.RemoveAt(4)))
-        assertEquals(MenuEditResult.NoChange to raw, edit(raw, MenuEdit.Move(0, 5)))
-        assertEquals(MenuEditResult.NoChange to raw, edit(raw, MenuEdit.Move(1, 1)))
-        assertEquals(MenuEditResult.NoChange to raw, edit(raw, MenuEdit.Move(3, 4)))
+        assertEquals(MenuEditResult.Applied to moved, edit(raw, MenuEdit.Move(0, 3, raw)))
+        assertEquals(MenuEditResult.Applied to moved.dropLast(1), edit(moved, MenuEdit.RemoveAt(4, moved)))
+        assertEquals(MenuEditResult.NoChange to raw, edit(raw, MenuEdit.Move(0, 5, raw)))
+        assertEquals(MenuEditResult.NoChange to raw, edit(raw, MenuEdit.Move(1, 1, raw)))
+        assertEquals(MenuEditResult.NoChange to raw, edit(raw, MenuEdit.Move(3, 4, raw)))
     }
 
     private fun edit(raw: List<String>, edit: MenuEdit) = applyMenuEdit(raw, edit, { it }, { it })

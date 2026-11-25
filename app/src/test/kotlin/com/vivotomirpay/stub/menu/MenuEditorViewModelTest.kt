@@ -53,7 +53,7 @@ class MenuEditorViewModelTest {
 
     @Test
     fun editorEditsRawIndexesAndRejectsUnsupportedSpecials() = withEditor { editor, repository ->
-        editor.onIntent(MenuEditorIntent.RemoveAt(1))
+        editor.onIntent(MenuEditorIntent.RemoveAt(1, editor.state.value.menuItems))
         advanceUntilIdle()
         assertEquals(listOf("", "special:camera"), editor.state.value.menuItems)
 
@@ -70,6 +70,73 @@ class MenuEditorViewModelTest {
         advanceUntilIdle()
         assertEquals(listOf("", "special:camera", "special:vpn"), repository.snapshot().menuItems)
         assertEquals(MenuPicker.None, editor.state.value.picker)
+    }
+
+    @Test
+    fun staleRemoveDoesNotDeleteTheRowNowAtThatIndex() = withEditor { editor, repository ->
+        val staleTap = MenuEditorIntent.RemoveAt(1, editor.state.value.menuItems)
+        val current = listOf("", "special:camera")
+        repository.replaceMenu(current)
+        advanceUntilIdle()
+        assertEquals(current, editor.state.value.menuItems)
+
+        editor.onIntent(staleTap)
+        advanceUntilIdle()
+
+        assertEquals(current, repository.snapshot().menuItems)
+        assertEquals(MenuEditResult.NoChange, editor.state.value.editResult)
+    }
+
+    @Test
+    fun staleMoveDoesNotReorderAnEditNotYetObserved() = withEditor { editor, repository ->
+        val shown = editor.state.value.menuItems
+        val staleTap = MenuEditorIntent.Move(1, 2, shown)
+        val persisted = listOf("", "special:torch", "special:camera", "special:vpn")
+        repository.replaceMenu(persisted, publish = false)
+
+        editor.onIntent(staleTap)
+        advanceUntilIdle()
+
+        assertEquals(persisted, repository.snapshot().menuItems)
+        assertEquals(shown, editor.state.value.menuItems)
+        assertEquals(MenuEditResult.NoChange, editor.state.value.editResult)
+    }
+
+    @Test
+    fun committedEditBecomesVisibleOnlyThroughTheObservedMenu() = withEditor { editor, repository ->
+        val shown = editor.state.value.menuItems
+        val edited = listOf("", "special:camera")
+        repository.publishWrites = false
+
+        editor.onIntent(MenuEditorIntent.RemoveAt(1, shown))
+        advanceUntilIdle()
+        assertEquals(edited, repository.snapshot().menuItems)
+        assertEquals(shown, editor.state.value.menuItems)
+
+        repository.replaceMenu(edited)
+        advanceUntilIdle()
+        assertEquals(edited, editor.state.value.menuItems)
+    }
+
+    @Test
+    fun obsoleteAppPickCannotSaveWhileNewFilterIsPending() = withEditor { editor, repository ->
+        editor.onIntent(MenuEditorIntent.OpenApps)
+        advanceUntilIdle()
+        assertTrue(editor.state.value.visibleApps.any { it.packageName == "org.maps" })
+        val before = repository.snapshot().menuItems
+
+        // Do not advance the dispatcher: a callback from the last rendered rows arrives before filtering.
+        editor.onIntent(MenuEditorIntent.SearchApps("wallet"))
+        val whileFiltering = editor.state.value.visibleApps
+        editor.onIntent(MenuEditorIntent.PickApp("org.maps"))
+        advanceUntilIdle()
+
+        assertEquals(before, repository.snapshot().menuItems)
+        assertEquals(emptyList<AppEntry>(), whileFiltering)
+        assertEquals(listOf(AppEntry("org.wallet", "Wallet")), editor.state.value.visibleApps)
+        editor.onIntent(MenuEditorIntent.PickApp("org.wallet"))
+        advanceUntilIdle()
+        assertEquals(before + "app:org.wallet", repository.snapshot().menuItems)
     }
 
     @Test
@@ -135,16 +202,24 @@ class MenuEditorViewModelTest {
     }
 
     private class MemorySettings : SettingsRepository {
-        private val values = MutableStateFlow(
-            SettingsSnapshot("", false, "", false, 40, "single", "auto",
-                listOf("", "special:torch", "special:camera"), ""),
+        private var saved = SettingsSnapshot(
+            "", false, "", false, 40, "single", "auto",
+            listOf("", "special:torch", "special:camera"), "",
         )
+        private val values = MutableStateFlow(saved)
+        var publishWrites = true
+
+        fun replaceMenu(items: List<String>, publish: Boolean = true) {
+            saved = saved.copy(menuItems = items)
+            if (publish) values.value = saved
+        }
+
         override fun observe() = values
-        override fun snapshot() = values.value
+        override fun snapshot() = saved
         override fun update(change: SettingsChange) = error("Expected a menu edit")
         override fun editMenu(edit: MenuEdit): MenuEditResult {
-            val (result, items) = applyMenuEdit(values.value.menuItems, edit, { it }, { it })
-            if (result == MenuEditResult.Applied) values.value = values.value.copy(menuItems = items)
+            val (result, items) = applyMenuEdit(saved.menuItems, edit, { it }, { it })
+            if (result == MenuEditResult.Applied) replaceMenu(items, publishWrites)
             return result
         }
     }

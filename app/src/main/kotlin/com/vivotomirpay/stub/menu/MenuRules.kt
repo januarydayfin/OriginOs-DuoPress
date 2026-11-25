@@ -7,11 +7,11 @@ sealed interface MenuEdit {
     /** Добавляет новый ID в конец, не меняя существующие значения. */
     data class Add(val id: String) : MenuEdit
 
-    /** Удаляет сырую позицию, в том числе пустой или повторяющийся пункт. */
-    data class RemoveAt(val index: Int) : MenuEdit
+    /** Удаляет сырую позицию только если сохранённый массив совпадает с [expectedRaw]. */
+    data class RemoveAt(val index: Int, val expectedRaw: List<String>) : MenuEdit
 
-    /** [to] — итоговый индекс элемента; остальные элементы сдвигаются. */
-    data class Move(val from: Int, val to: Int) : MenuEdit
+    /** Перемещает элемент в итоговый индекс [to], если сохранённый массив совпадает с [expectedRaw]. */
+    data class Move(val from: Int, val to: Int, val expectedRaw: List<String>) : MenuEdit
 }
 
 enum class MenuEditResult { Applied, Duplicate, Full, NoChange }
@@ -63,11 +63,13 @@ internal fun <T> applyMenuEdit(
             raw + itemFromId(id)
         }
         is MenuEdit.RemoveAt -> {
-            if (edit.index !in raw.indices) return MenuEditResult.NoChange to raw
+            if (edit.index !in raw.indices || raw.map(idOf) != edit.expectedRaw) return MenuEditResult.NoChange to raw
             raw.toMutableList().apply { removeAt(edit.index) }
         }
         is MenuEdit.Move -> {
-            if (edit.from !in raw.indices || edit.to !in raw.indices || edit.from == edit.to) {
+            if (edit.from !in raw.indices || edit.to !in raw.indices || edit.from == edit.to ||
+                raw.map(idOf) != edit.expectedRaw
+            ) {
                 return MenuEditResult.NoChange to raw
             }
             raw.toMutableList().apply { add(edit.to, removeAt(edit.from)) }

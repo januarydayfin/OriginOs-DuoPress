@@ -101,15 +101,16 @@ private fun EditorRows(
     modifier: Modifier,
     loadIcon: suspend (String) -> ImageBitmap?,
 ) {
+    val renderedMenu = state.menuItems
     LazyColumn(modifier.fillMaxSize(), contentPadding = PaddingValues(vertical = 8.dp)) {
         item {
             PickerMessage(stringResource(R.string.editor_hint))
             EditorFeedback(state)
         }
-        if (!state.loadingMenu && state.menuItems.isEmpty()) {
+        if (!state.loadingMenu && renderedMenu.isEmpty()) {
             item { PickerMessage(stringResource(R.string.editor_empty)) }
         }
-        itemsIndexed(state.menuItems) { index, rawId ->
+        itemsIndexed(renderedMenu) { index, rawId ->
             val id = rawId.legacyMenuTrim()
             val special = menuSpecialLabel(id)
             val packageName = PrefsHelper.appPackageOf(id)
@@ -134,17 +135,17 @@ private fun EditorRows(
                             icon = R.drawable.ic_action_up,
                             description = stringResource(R.string.editor_move_up, label),
                             enabled = !state.saving && index > 0,
-                        ) { onIntent(MenuEditorIntent.Move(index, index - 1)) }
+                        ) { onIntent(MenuEditorIntent.Move(index, index - 1, renderedMenu)) }
                         EditIconButton(
                             icon = R.drawable.ic_action_down,
                             description = stringResource(R.string.editor_move_down, label),
-                            enabled = !state.saving && index < state.menuItems.lastIndex,
-                        ) { onIntent(MenuEditorIntent.Move(index, index + 1)) }
+                            enabled = !state.saving && index < renderedMenu.lastIndex,
+                        ) { onIntent(MenuEditorIntent.Move(index, index + 1, renderedMenu)) }
                         EditIconButton(
                             icon = R.drawable.ic_action_delete,
                             description = stringResource(R.string.editor_remove_item, label),
                             enabled = !state.saving,
-                        ) { onIntent(MenuEditorIntent.RemoveAt(index)) }
+                        ) { onIntent(MenuEditorIntent.RemoveAt(index, renderedMenu)) }
                     }
                 },
             )

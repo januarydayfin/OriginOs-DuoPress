@@ -21,13 +21,14 @@ class MenuPersistenceTest {
     fun readsAndNoOpsDoNotRewriteLegacyJson() = withMenu(
         """[ " special:torch ", "", "special:menu", "special:camera", "special:camera" ]""",
     ) { repository, json ->
+        val raw = listOf(" special:torch ", "", "special:menu", "special:camera", "special:camera")
         assertEquals(
-            listOf(" special:torch ", "", "special:menu", "special:camera", "special:camera"),
+            raw,
             repository.snapshot().menuItems,
         )
         assertEquals(MenuEditResult.Duplicate, repository.editMenu(MenuEdit.Add("special:torch")))
-        assertEquals(MenuEditResult.NoChange, repository.editMenu(MenuEdit.RemoveAt(7)))
-        assertEquals(MenuEditResult.NoChange, repository.editMenu(MenuEdit.Move(3, 4)))
+        assertEquals(MenuEditResult.NoChange, repository.editMenu(MenuEdit.RemoveAt(7, raw)))
+        assertEquals(MenuEditResult.NoChange, repository.editMenu(MenuEdit.Move(3, 4, raw)))
         assertEquals(json, PrefsHelper.getMenuItemsJson(context))
     }
 
@@ -35,15 +36,46 @@ class MenuPersistenceTest {
     fun editsUseRawIndexesAndPersistAnEmptyArray() = withMenu(
         """[""," special:torch ","special:camera"]""",
     ) { repository, _ ->
-        assertEquals(MenuEditResult.Applied, repository.editMenu(MenuEdit.Move(2, 0)))
+        assertEquals(
+            MenuEditResult.Applied,
+            repository.editMenu(MenuEdit.Move(2, 0, listOf("", " special:torch ", "special:camera"))),
+        )
         assertEquals("""["special:camera",""," special:torch "]""", PrefsHelper.getMenuItemsJson(context))
-        assertEquals(MenuEditResult.Applied, repository.editMenu(MenuEdit.RemoveAt(1)))
+        assertEquals(
+            MenuEditResult.Applied,
+            repository.editMenu(MenuEdit.RemoveAt(1, listOf("special:camera", "", " special:torch "))),
+        )
         assertEquals("""["special:camera"," special:torch "]""", PrefsHelper.getMenuItemsJson(context))
-        assertEquals(MenuEditResult.Applied, repository.editMenu(MenuEdit.RemoveAt(1)))
-        assertEquals(MenuEditResult.Applied, repository.editMenu(MenuEdit.RemoveAt(0)))
+        assertEquals(
+            MenuEditResult.Applied,
+            repository.editMenu(MenuEdit.RemoveAt(1, listOf("special:camera", " special:torch "))),
+        )
+        assertEquals(MenuEditResult.Applied, repository.editMenu(MenuEdit.RemoveAt(0, listOf("special:camera"))))
         assertEquals("[]", PrefsHelper.getMenuItemsJson(context))
         assertEquals(emptyList<String>(), LegacySettingsRepository(context).snapshot().menuItems)
     }
+
+    @Test
+    fun rejectsStaleRemoveWithoutRewritingTheReplacementJson() =
+        withMenu("""["special:torch","special:camera"]""") { repository, _ ->
+            val staleEdit = MenuEdit.RemoveAt(0, repository.snapshot().menuItems)
+            val currentJson = """[ "special:camera" ]"""
+            PrefsHelper.setMenuItemsJson(context, currentJson)
+
+            assertEquals(MenuEditResult.NoChange, repository.editMenu(staleEdit))
+            assertEquals(currentJson, PrefsHelper.getMenuItemsJson(context))
+        }
+
+    @Test
+    fun rejectsStaleMoveEvenWhenSourceAndDestinationRowsAreUnchanged() =
+        withMenu("""["special:torch","special:camera"," app:org.example "]""") { repository, _ ->
+            val staleEdit = MenuEdit.Move(0, 1, repository.snapshot().menuItems)
+            val currentJson = """[ "special:torch", "special:camera", "app:org.example" ]"""
+            PrefsHelper.setMenuItemsJson(context, currentJson)
+
+            assertEquals(MenuEditResult.NoChange, repository.editMenu(staleEdit))
+            assertEquals(currentJson, PrefsHelper.getMenuItemsJson(context))
+        }
 
     @Test
     fun concurrentEditorsSerializeTheReadCheckAndWriteAcrossRepositoryInstances() = withMenu("[]") { _, _ ->
