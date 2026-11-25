@@ -7,6 +7,11 @@
     <string name="header_title">Double Power Key</string>
     <string name="header_subtitle">Переназначение двойного нажатия кнопки питания для Vivo / iQOO (OriginOS / FuntouchOS)</string>
 
+    <!-- Навигация -->
+    <string name="nav_actions">Действия</string>
+    <string name="nav_settings">Настройки</string>
+    <string name="nav_diagnostics">Диагностика</string>
+
     <!-- Статус обработчика -->
     <string name="status_default_ok">✓ Двойное нажатие питания: эта заглушка назначена обработчиком по умолчанию</string>
     <string name="status_default_other">⚠ Двойное нажатие питания: сейчас выбрано %1$s</string>
