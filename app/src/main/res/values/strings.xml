@@ -12,6 +12,24 @@
     <string name="nav_settings">Настройки</string>
     <string name="nav_diagnostics">Диагностика</string>
 
+    <!-- Экран «Действия» -->
+    <string name="actions_double_press">Двойное нажатие</string>
+    <string name="actions_same_as_unlocked">Как на разблокированном</string>
+    <string name="actions_settings_loading">Загрузка настроек…</string>
+    <string name="actions_handler_loading">Проверка обработчика…</string>
+    <string name="actions_handler_current">Обработчик: %1$s</string>
+    <string name="actions_handler_no_specific">Конкретный обработчик не выбран</string>
+    <string name="actions_handler_unavailable">Обработчики недоступны</string>
+    <string name="actions_configure_handler">Настроить кнопку</string>
+    <string name="actions_open_handler_details">Открыть настройки обработчика</string>
+    <string name="actions_platform_launch_failed">Не удалось открыть системный экран</string>
+    <plurals name="actions_menu_count">
+        <item quantity="one">%1$d действие</item>
+        <item quantity="few">%1$d действия</item>
+        <item quantity="many">%1$d действий</item>
+        <item quantity="other">%1$d действия</item>
+    </plurals>
+
     <!-- Статус обработчика -->
     <string name="status_default_ok">✓ Двойное нажатие питания: эта заглушка назначена обработчиком по умолчанию</string>
     <string name="status_default_other">⚠ Двойное нажатие питания: сейчас выбрано %1$s</string>

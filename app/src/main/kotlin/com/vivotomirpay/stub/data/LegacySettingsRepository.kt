@@ -1,0 +1,75 @@
+package com.vivotomirpay.stub.data
+
+import android.content.Context
+import android.content.SharedPreferences
+import com.vivotomirpay.stub.PrefsHelper
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.conflate
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.map
+import java.util.Collections
+
+/**
+ * Использует существующие ключи, значения по умолчанию и нормализацию [PrefsHelper].
+ *
+ * @param context контекст установленного варианта приложения.
+ * @param dispatcher диспетчер регистрации слушателя и чтения снимков из [observe].
+ */
+class LegacySettingsRepository(
+    context: Context,
+    private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
+) : SettingsRepository {
+    private val appContext = context.applicationContext
+
+    override fun observe(): Flow<SettingsSnapshot> = callbackFlow {
+        val prefs = appContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, _ ->
+            trySend(Unit)
+        }
+        prefs.registerOnSharedPreferenceChangeListener(listener)
+        trySend(Unit)
+        awaitClose { prefs.unregisterOnSharedPreferenceChangeListener(listener) }
+    }
+        .conflate()
+        .map { snapshot() }
+        .distinctUntilChanged()
+        .flowOn(dispatcher)
+
+    override fun snapshot(): SettingsSnapshot {
+        val menu = PrefsHelper.getMenuItems(appContext)
+        return SettingsSnapshot(
+            targetId = PrefsHelper.getTargetPackage(appContext),
+            lockscreenEnabled = PrefsHelper.isLockscreenEnabled(appContext),
+            lockscreenActionId = PrefsHelper.getLockscreenAction(appContext),
+            vibrateEnabled = PrefsHelper.isVibrateEnabled(appContext),
+            vibrateDurationMs = PrefsHelper.getVibrateDurationMs(appContext),
+            vibratePattern = PrefsHelper.getVibratePattern(appContext),
+            vpnClient = PrefsHelper.getVpnClient(appContext),
+            menuItems = Collections.unmodifiableList(List(menu.length()) { menu.optString(it) }),
+            triggerLog = PrefsHelper.getLastTriggerLog(appContext).orEmpty(),
+        )
+    }
+
+    override fun update(change: SettingsChange) {
+        when (change) {
+            is SettingsChange.Target -> PrefsHelper.setTargetPackage(appContext, change.id)
+            is SettingsChange.LockscreenEnabled -> PrefsHelper.setLockscreenEnabled(appContext, change.enabled)
+            is SettingsChange.LockscreenAction -> PrefsHelper.setLockscreenAction(appContext, change.id)
+            is SettingsChange.VibrationEnabled -> PrefsHelper.setVibrateEnabled(appContext, change.enabled)
+            is SettingsChange.VibrationDuration -> PrefsHelper.setVibrateDurationMs(appContext, change.ms)
+            is SettingsChange.VibrationPattern -> PrefsHelper.setVibratePattern(appContext, change.pattern)
+            is SettingsChange.VpnClient -> PrefsHelper.setVpnClient(appContext, change.client)
+            SettingsChange.ClearLog -> PrefsHelper.clearTriggerLog(appContext)
+        }
+    }
+
+    private companion object {
+        // Имя закрыто в PrefsHelper. Оно нужно здесь только для подписки на тот же файл.
+        const val PREFS_NAME = "vivo_swipe_stub_prefs"
+    }
+}

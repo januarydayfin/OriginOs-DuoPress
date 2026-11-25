@@ -12,6 +12,22 @@
     <string name="nav_settings">Settings</string>
     <string name="nav_diagnostics">Diagnostics</string>
 
+    <!-- Actions screen -->
+    <string name="actions_double_press">Double press</string>
+    <string name="actions_same_as_unlocked">Same as when unlocked</string>
+    <string name="actions_settings_loading">Loading settings…</string>
+    <string name="actions_handler_loading">Checking handler…</string>
+    <string name="actions_handler_current">Handler: %1$s</string>
+    <string name="actions_handler_no_specific">No specific handler selected</string>
+    <string name="actions_handler_unavailable">No handlers available</string>
+    <string name="actions_configure_handler">Set up button</string>
+    <string name="actions_open_handler_details">Open handler settings</string>
+    <string name="actions_platform_launch_failed">Could not open the system screen</string>
+    <plurals name="actions_menu_count">
+        <item quantity="one">%1$d action</item>
+        <item quantity="other">%1$d actions</item>
+    </plurals>
+
     <!-- Handler status -->
     <string name="status_default_ok">✓ Double power press: this app is set as the default handler</string>
     <string name="status_default_other">⚠ Double power press: currently assigned to %1$s</string>
