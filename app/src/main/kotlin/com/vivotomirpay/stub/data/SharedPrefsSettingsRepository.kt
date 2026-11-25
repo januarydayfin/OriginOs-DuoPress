@@ -24,14 +24,14 @@ import java.util.Collections
  * @param context контекст установленного варианта приложения.
  * @param dispatcher диспетчер регистрации слушателя и чтения снимков из [observe].
  */
-class LegacySettingsRepository(
+class SharedPrefsSettingsRepository(
     context: Context,
     private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) : SettingsRepository {
     private val appContext = context.applicationContext
 
     override fun observe(): Flow<SettingsSnapshot> = callbackFlow {
-        val prefs = appContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val prefs = PrefsHelper.preferences(appContext)
         val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, _ ->
             trySend(Unit)
         }
@@ -83,8 +83,6 @@ class LegacySettingsRepository(
     }
 
     private companion object {
-        // Имя закрыто в PrefsHelper. Оно нужно здесь только для подписки на тот же файл.
-        const val PREFS_NAME = "vivo_swipe_stub_prefs"
         val menuLock = Any()
     }
 }

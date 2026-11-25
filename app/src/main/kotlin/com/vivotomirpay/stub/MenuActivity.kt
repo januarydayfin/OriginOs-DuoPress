@@ -18,7 +18,7 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.doOnAttach
 import androidx.core.view.doOnDetach
 import androidx.lifecycle.lifecycleScope
-import com.vivotomirpay.stub.data.LegacySettingsRepository
+import com.vivotomirpay.stub.data.SharedPrefsSettingsRepository
 import com.vivotomirpay.stub.menu.ActionSheet
 import com.vivotomirpay.stub.menu.MenuItemUi
 import com.vivotomirpay.stub.menu.MenuSelection
@@ -125,7 +125,7 @@ private suspend fun loadMenuItems(
     context: Context,
     dispatcher: CoroutineDispatcher = Dispatchers.IO,
 ): List<MenuItemUi> = withContext(dispatcher) {
-    val settings = LegacySettingsRepository(context).snapshot()
+    val settings = SharedPrefsSettingsRepository(context).snapshot()
     val pm = context.packageManager
     visibleMenuItems(settings.menuItems).map { id ->
         ensureActive()

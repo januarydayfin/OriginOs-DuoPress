@@ -6,7 +6,7 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.vivotomirpay.stub.actions.ActionsViewModel
 import com.vivotomirpay.stub.actions.LegacyActionLabelResolver
-import com.vivotomirpay.stub.data.LegacySettingsRepository
+import com.vivotomirpay.stub.data.SharedPrefsSettingsRepository
 import com.vivotomirpay.stub.diagnostics.DiagnosticsViewModel
 import com.vivotomirpay.stub.menu.MenuEditorViewModel
 import com.vivotomirpay.stub.picker.ActionPickerViewModel
@@ -29,7 +29,7 @@ internal class AppDependencies(
     handlerProbe: HandlerProbe = AndroidHandlerProbe(context.applicationContext),
 ) {
     private val appContext = context.applicationContext
-    private val repository = LegacySettingsRepository(appContext)
+    private val repository = SharedPrefsSettingsRepository(appContext)
     private val device = AndroidDeviceStatusProbe(appContext)
     private val catalog = AndroidAppCatalog(appContext)
     private val labels = LegacyActionLabelResolver(appContext)

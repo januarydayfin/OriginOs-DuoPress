@@ -4,7 +4,7 @@ import android.content.Context
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.vivotomirpay.stub.PrefsHelper
-import com.vivotomirpay.stub.data.LegacySettingsRepository
+import com.vivotomirpay.stub.data.SharedPrefsSettingsRepository
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -52,7 +52,7 @@ class MenuPersistenceTest {
         )
         assertEquals(MenuEditResult.Applied, repository.editMenu(MenuEdit.RemoveAt(0, listOf("special:camera"))))
         assertEquals("[]", PrefsHelper.getMenuItemsJson(context))
-        assertEquals(emptyList<String>(), LegacySettingsRepository(context).snapshot().menuItems)
+        assertEquals(emptyList<String>(), SharedPrefsSettingsRepository(context).snapshot().menuItems)
     }
 
     @Test
@@ -79,7 +79,7 @@ class MenuPersistenceTest {
 
     @Test
     fun concurrentEditorsSerializeTheReadCheckAndWriteAcrossRepositoryInstances() = withMenu("[]") { _, _ ->
-        val repositories = List(16) { LegacySettingsRepository(context) }
+        val repositories = List(16) { SharedPrefsSettingsRepository(context) }
         val ids = repositories.indices.map { "app:org.example.app$it" }
         val ready = CountDownLatch(ids.size)
         val start = CountDownLatch(1)
@@ -95,7 +95,7 @@ class MenuPersistenceTest {
             assertTrue(ready.await(5, TimeUnit.SECONDS))
             start.countDown()
             writes.forEach { assertEquals(MenuEditResult.Applied, it.get(5, TimeUnit.SECONDS)) }
-            val repository = LegacySettingsRepository(context)
+            val repository = SharedPrefsSettingsRepository(context)
             val saved = repository.snapshot().menuItems
             assertEquals(ids.size, saved.size)
             assertEquals(ids.toSet(), saved.toSet())
@@ -106,13 +106,13 @@ class MenuPersistenceTest {
         }
     }
 
-    private fun withMenu(json: String, block: (LegacySettingsRepository, String) -> Unit) {
+    private fun withMenu(json: String, block: (SharedPrefsSettingsRepository, String) -> Unit) {
         val prefs = context.getSharedPreferences("vivo_swipe_stub_prefs", Context.MODE_PRIVATE)
         val key = "menu_items_json"
         val previous = prefs.getString(key, null)
         try {
             assertTrue(prefs.edit().putString(key, json).commit())
-            block(LegacySettingsRepository(context), json)
+            block(SharedPrefsSettingsRepository(context), json)
         } finally {
             val editor = prefs.edit()
             if (previous == null) editor.remove(key) else editor.putString(key, previous)
