@@ -3,6 +3,9 @@ package com.vivotomirpay.stub.data
 import android.content.Context
 import android.content.SharedPreferences
 import com.vivotomirpay.stub.PrefsHelper
+import com.vivotomirpay.stub.menu.MenuEdit
+import com.vivotomirpay.stub.menu.MenuEditResult
+import com.vivotomirpay.stub.menu.applyMenuEdit
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.awaitClose
@@ -12,6 +15,7 @@ import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
+import org.json.JSONArray
 import java.util.Collections
 
 /**
@@ -68,8 +72,19 @@ class LegacySettingsRepository(
         }
     }
 
+    override fun editMenu(edit: MenuEdit): MenuEditResult = synchronized(menuLock) {
+        val source = PrefsHelper.getMenuItems(appContext)
+        val raw = List(source.length()) { source.opt(it) }
+        val (result, items) = applyMenuEdit(raw, edit, { it?.toString().orEmpty() }, { it })
+        if (result == MenuEditResult.Applied) {
+            PrefsHelper.saveMenuItems(appContext, JSONArray().apply { items.forEach { put(it) } })
+        }
+        result
+    }
+
     private companion object {
         // Имя закрыто в PrefsHelper. Оно нужно здесь только для подписки на тот же файл.
         const val PREFS_NAME = "vivo_swipe_stub_prefs"
+        val menuLock = Any()
     }
 }

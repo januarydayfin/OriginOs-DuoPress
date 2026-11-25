@@ -177,6 +177,7 @@ class SettingsViewModelTest {
 }
 
 internal class Task3SettingsRepository(triggerLog: String = "") : SettingsRepository {
+    override fun editMenu(edit: com.vivotomirpay.stub.menu.MenuEdit) = error("Unexpected menu edit: $edit")
     private val saved = MutableStateFlow(
         SettingsSnapshot("ru.nspk.mirpay", true, "special:torch", true, 40, "single", "auto", emptyList(), triggerLog),
     )

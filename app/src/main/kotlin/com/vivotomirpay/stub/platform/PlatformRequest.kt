@@ -20,6 +20,9 @@ sealed interface PlatformCommand {
 
     /** Запускает действие через явный вход приложения, не через системный выбор обработчика. */
     data object TestAction : PlatformCommand
+
+    /** Открывает рабочую панель действий из редактора меню. */
+    data object PreviewMenu : PlatformCommand
 }
 
 /**

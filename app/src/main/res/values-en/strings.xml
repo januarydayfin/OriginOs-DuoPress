@@ -119,6 +119,12 @@
     <string name="editor_empty">Menu is empty</string>
     <string name="editor_already_in_menu">Already in the menu</string>
     <string name="editor_menu_full">The menu holds up to 16 items</string>
+    <string name="editor_blank_item">Blank item</string>
+    <string name="editor_move_up">Move %1$s up</string>
+    <string name="editor_move_down">Move %1$s down</string>
+    <string name="editor_remove_item">Remove %1$s</string>
+    <string name="editor_save_failed">Could not save menu changes</string>
+    <string name="editor_preview_failed">Could not open the menu</string>
 
     <!-- Action picker -->
     <string name="picker_title_main">Double press action</string>

@@ -123,6 +123,12 @@
     <string name="editor_empty">Меню пустое</string>
     <string name="editor_already_in_menu">Уже есть в меню</string>
     <string name="editor_menu_full">В меню максимум 16 пунктов</string>
+    <string name="editor_blank_item">Пустой пункт</string>
+    <string name="editor_move_up">Переместить «%1$s» вверх</string>
+    <string name="editor_move_down">Переместить «%1$s» вниз</string>
+    <string name="editor_remove_item">Удалить «%1$s»</string>
+    <string name="editor_save_failed">Не удалось сохранить изменения меню</string>
+    <string name="editor_preview_failed">Не удалось открыть меню</string>
 
     <!-- Пикер действий -->
     <string name="picker_title_main">Действие двойного нажатия</string>

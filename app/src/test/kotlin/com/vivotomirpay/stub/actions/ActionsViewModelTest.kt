@@ -291,6 +291,7 @@ class ActionsViewModelTest {
     ).also(models::add)
 
     private class FakeSettings : SettingsRepository {
+        override fun editMenu(edit: com.vivotomirpay.stub.menu.MenuEdit) = error("Unexpected menu edit: $edit")
         val saved = MutableStateFlow(
             SettingsSnapshot(
                 targetId = "ru.nspk.mirpay",

@@ -134,6 +134,7 @@ abstract class PickerViewModelTestFixture {
 }
 
 internal class PickerSettings : SettingsRepository {
+    override fun editMenu(edit: com.vivotomirpay.stub.menu.MenuEdit) = error("Unexpected menu edit: $edit")
     val saved = MutableStateFlow(
         SettingsSnapshot(
             "ru.nspk.mirpay", true, "special:torch", true, 40, "single", "auto", emptyList(), "",

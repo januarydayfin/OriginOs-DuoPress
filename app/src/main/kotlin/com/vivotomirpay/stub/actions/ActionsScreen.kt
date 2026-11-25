@@ -32,6 +32,7 @@ import com.vivotomirpay.stub.R
 import com.vivotomirpay.stub.data.SettingsSnapshot
 import com.vivotomirpay.stub.platform.HandlerSnapshot
 import com.vivotomirpay.stub.platform.HandlerStatus
+import com.vivotomirpay.stub.menu.visibleMenuItems
 import com.vivotomirpay.stub.ui.navigation.AppRoute
 import com.vivotomirpay.stub.ui.theme.AppTheme
 
@@ -74,7 +75,10 @@ fun ActionsScreen(
         )
         ActionRow(
             title = stringResource(R.string.card_menu_title),
-            summary = settings?.menuItems?.size?.let { pluralStringResource(R.plurals.actions_menu_count, it, it) },
+            summary = settings?.let {
+                val count = visibleMenuItems(it.menuItems).size
+                pluralStringResource(R.plurals.actions_menu_count, count, count)
+            },
             onClick = { onOpen(AppRoute.MenuEditor) },
         )
     }
