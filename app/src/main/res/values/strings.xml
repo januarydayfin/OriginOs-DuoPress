@@ -17,7 +17,7 @@
     <string name="card_action_title">Действие двойного нажатия</string>
     <string name="main_action_label">Что запускать</string>
     <string name="btn_change">Изменить</string>
-    <string name="card_action_hint">Приложение или одно из спец-действий: фонарик, камера, VPN, Circle to Search или меню действий. Circle to Search работает как в MiCTS — через VoiceInteractionService, без root и accessibility.</string>
+    <string name="card_action_hint">Приложение, ярлык приложения или одно из спец-действий: фонарик, камера, VPN, Circle to Search или меню действий. Для ярлыков нужен Android 11+ и Shizuku, установленный и запущенный через ADB (без root). Circle to Search работает как в MiCTS — через VoiceInteractionService, без root и accessibility.</string>
     <string name="action_none_selected">Не выбрано</string>
     <string name="subtitle_not_set">Не задано</string>
 
@@ -38,6 +38,7 @@
     <string name="name_vpn">Переключить VPN</string>
     <string name="name_vpn_short">VPN: %1$s</string>
     <string name="name_menu">Меню действий</string>
+    <string name="name_shortcuts">Ярлыки</string>
     <string name="vpn_name_generic">VPN</string>
 
     <!-- Экран блокировки -->
@@ -97,6 +98,25 @@
     <string name="picker_search_hint">Поиск по названию или имени пакета…</string>
     <string name="picker_no_apps">Ничего не найдено</string>
     <string name="btn_close">Закрыть</string>
+
+    <!-- Пикер ярлыков приложений -->
+    <string name="shortcut_picker_title">Выбор ярлыка</string>
+    <string name="shortcut_picker_search_hint">Поиск по приложениям и ярлыкам…</string>
+    <string name="shortcut_picker_loading">Загрузка ярлыков…</string>
+    <string name="shortcut_picker_no_shortcuts">Нет доступных ярлыков</string>
+    <string name="shortcut_picker_loading_error">Не удалось загрузить ярлыки: %1$s</string>
+    <string name="shortcut_shizuku_unavailable">Для работы ярлыков установите Shizuku и запустите его через ADB</string>
+    <string name="shortcut_shizuku_pre_v11">Для ярлыков нужен Shizuku с API 11 или новее</string>
+    <string name="shortcut_permission_required">Разрешите Double Power Key доступ в Shizuku</string>
+    <string name="shortcut_permission_denied">Разрешение Shizuku не выдано</string>
+    <string name="shortcut_unsupported_uid">Поддерживается только Shizuku через ADB без root (UID shell)</string>
+    <string name="shortcut_unsupported_api">Для ярлыков нужен Android 11 (API 30) или новее</string>
+    <string name="shortcut_type_manifest">Из манифеста</string>
+    <string name="shortcut_type_dynamic">Динамический</string>
+    <string name="shortcut_type_pinned">Закреплённый</string>
+    <string name="btn_retry">Повторить</string>
+    <string name="btn_back">Назад</string>
+    <string name="btn_open_shizuku">Открыть Shizuku</string>
 
     <!-- Обработчик кнопки питания -->
     <string name="card_handler_title">Обработчик кнопки питания</string>
@@ -158,6 +178,9 @@
     <string name="log_cts_false">Circle to Search: система вернула false. Ассистент: %1$s</string>
     <string name="log_cts_error">Circle to Search не сработал: %1$s</string>
     <string name="log_wallet_ok">Запущен ключ Vivo Wallet (NewSwipeActivity)</string>
+    <string name="log_shortcut_ok">Ярлык запущен: %1$s</string>
+    <string name="log_shortcut_failed">Ошибка запуска ярлыка: %1$s</string>
+    <string name="log_shortcut_invalid">Некорректное действие ярлыка: %1$s</string>
     <string name="log_app_ok">Запущено: %1$s</string>
     <string name="log_app_error">Ошибка запуска: %1$s</string>
     <string name="log_app_not_found">Приложение не найдено или не запускается: %1$s</string>

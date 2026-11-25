@@ -23,6 +23,7 @@ import java.util.List;
  *   - "special:circle_to_search" — Circle to Search через VoiceInteractionService (как MiCTS);
  *   - "special:vpn"              — переключение VPN Happ / incy (см. VpnController);
  *   - "special:menu"             — открытие настраиваемого меню действий (MenuActivity);
+ *   - "shortcut:<...>"           — запуск ярлыка через Shizuku;
  *   - "app:<packageName>" или "<packageName>" — запуск установленного приложения.
  */
 public final class ActionRunner {
@@ -51,6 +52,9 @@ public final class ActionRunner {
         }
 
         try {
+            if (ShortcutAction.isAction(id)) {
+                return launchShortcut(context, id, sourceIntent);
+            }
             if (id.startsWith(PrefsHelper.SPECIAL_PREFIX)) {
                 return runSpecial(context, id, sourceIntent);
             }
@@ -71,6 +75,64 @@ public final class ActionRunner {
             PrefsHelper.saveTriggerLog(context, sourceIntent, id, status);
             return status;
         }
+    }
+
+    private static String launchShortcut(Context context, String id, Intent sourceIntent) {
+        try {
+            ShortcutAction shortcut = ShortcutAction.parse(id);
+            if (shortcut == null) {
+                return saveShortcutResult(context, sourceIntent, id,
+                        context.getString(R.string.log_shortcut_invalid, id));
+            }
+
+            ShizukuShortcuts.Status status = ShizukuShortcuts.checkStatus();
+            if (status != ShizukuShortcuts.Status.OK) {
+                int messageRes;
+                switch (status) {
+                    case UNAVAILABLE:
+                        messageRes = R.string.shortcut_shizuku_unavailable;
+                        break;
+                    case PRE_V11:
+                        messageRes = R.string.shortcut_shizuku_pre_v11;
+                        break;
+                    case PERMISSION_DENIED:
+                        messageRes = R.string.shortcut_permission_required;
+                        break;
+                    case UNSUPPORTED_UID:
+                        messageRes = R.string.shortcut_unsupported_uid;
+                        break;
+                    case UNSUPPORTED_API:
+                        messageRes = R.string.shortcut_unsupported_api;
+                        break;
+                    default:
+                        messageRes = R.string.shortcut_shizuku_unavailable;
+                        break;
+                }
+                return saveShortcutResult(context, sourceIntent, id,
+                        context.getString(messageRes));
+            }
+
+            ShizukuShortcuts.startShortcut(context,
+                    shortcut.getPackageName(), shortcut.getShortcutId());
+            String label = shortcut.getLabel();
+            if (label == null || label.trim().isEmpty()) {
+                label = shortcut.getShortcutId();
+            }
+            return saveShortcutResult(context, sourceIntent, id,
+                    context.getString(R.string.log_shortcut_ok, label));
+        } catch (Exception e) {
+            return saveShortcutResult(context, sourceIntent, id,
+                    context.getString(R.string.log_shortcut_failed, safeMsg(e)));
+        } catch (LinkageError e) {
+            return saveShortcutResult(context, sourceIntent, id,
+                    context.getString(R.string.log_shortcut_failed, safeMsg(e)));
+        }
+    }
+
+    private static String saveShortcutResult(Context context, Intent sourceIntent,
+                                             String id, String result) {
+        PrefsHelper.saveTriggerLog(context, sourceIntent, id, result);
+        return result;
     }
 
     private static String runSpecial(Context context, String id, Intent sourceIntent) {
@@ -201,21 +263,13 @@ public final class ActionRunner {
      * Логика та же, что в проекте parallelcc/MiCTS:
      *   1) Bundle: invocation_time_ms, omni.entry_point = 1, micts_trigger = true;
      *   2) IBinder "voiceinteraction" через ServiceManager.getService();
-     *   3) IVoiceInteractionManagerService.showSessionFromSession() через reflection
-     *      + org.lsposed.hiddenapibypass (4 параметра на Android 14+, 3 — на старых).
+     *   3) IVoiceInteractionManagerService.showSessionFromSession() через HiddenApiCompat
+     *      (4 параметра на Android 14+, 3 — на старых).
      *   Не требует root, accessibility и разрешений.
      */
     public static String triggerCircleToSearch(Context context, Intent sourceIntent, String targetPkg) {
         try {
-            try {
-                org.lsposed.hiddenapibypass.HiddenApiBypass.setHiddenApiExemptions(
-                        "Landroid/os/ServiceManager",
-                        "Lcom/android/internal/app/IVoiceInteractionManagerService",
-                        "Lcom/android/internal/app/IVoiceInteractionManagerService$Stub"
-                );
-            } catch (Throwable ignored) {
-                // HiddenApiBypass.invoke() всё равно умеет дёргать @hide-методы.
-            }
+            HiddenApiCompat.ensureExemptions();
 
             android.os.Bundle bundle = new android.os.Bundle();
             bundle.putLong("invocation_time_ms", SystemClock.elapsedRealtime());
@@ -246,17 +300,9 @@ public final class ActionRunner {
 
             // Android 14+: showSessionFromSession(token, bundle, sourceFlags, invocationContext);
             // старые версии: showSessionFromSession(token, bundle, sourceFlags).
-            // В HiddenApiBypass только varargs-версия invoke() — параметры как в MiCTS.
-            Object result;
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-                result = org.lsposed.hiddenapibypass.HiddenApiBypass.invoke(
-                        iVimsClass, vims, "showSessionFromSession",
-                        null, bundle, 7, "hyperOS_home");
-            } else {
-                result = org.lsposed.hiddenapibypass.HiddenApiBypass.invoke(
-                        iVimsClass, vims, "showSessionFromSession",
-                        null, bundle, 7);
-            }
+            Object result = HiddenApiCompat.showSessionFromSession(
+                    iVimsClass, vims, bundle,
+                    Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE);
 
             boolean success = (result instanceof Boolean) && (Boolean) result;
             String assistant = getCurrentDefaultAssistant(context);
@@ -436,7 +482,19 @@ public final class ActionRunner {
 
     public static String safeMsg(Throwable t) {
         if (t == null) return "";
-        String msg = t.getMessage();
-        return msg != null ? msg : t.getClass().getSimpleName();
+        Throwable cause = t;
+        while (true) {
+            Throwable next = null;
+            if (cause instanceof java.lang.reflect.InvocationTargetException) {
+                next = ((java.lang.reflect.InvocationTargetException) cause).getTargetException();
+            }
+            if (next == null) {
+                next = cause.getCause();
+            }
+            if (next == null || next == cause) break;
+            cause = next;
+        }
+        String msg = cause.getMessage();
+        return msg != null ? msg : cause.getClass().getSimpleName();
     }
 }

@@ -23,11 +23,14 @@ import android.widget.SeekBar;
 import android.widget.ScrollView;
 import android.widget.Switch;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
+
+import rikka.shizuku.Shizuku;
 
 /**
  * Главное окно настроек — Material You (Material 3).
@@ -48,6 +51,11 @@ import java.util.Locale;
  */
 public class MainActivity extends Activity {
 
+    // Только идентификатор плитки в UI: в настройки сохраняется ShortcutAction.toActionId().
+    private static final String ACTION_SHORTCUTS = "special:shortcuts";
+    private static final String SHIZUKU_PACKAGE = "moe.shizuku.privileged.api";
+    private static final int SHIZUKU_PERMISSION_REQUEST_CODE = 0x5353;
+
     private Ui ui;
 
     private TextView statusPill;
@@ -67,6 +75,11 @@ public class MainActivity extends Activity {
     private String currentDefaultSwipePkg = null;
 
     private AlertDialog currentDialog;
+    private ShortcutPickerDialog shortcutPickerDialog;
+    private boolean shizukuPermissionRequestInFlight;
+    private ShortcutFlow shortcutFlowContinuation;
+    private final Shizuku.OnRequestPermissionResultListener shizukuPermissionResultListener =
+            (requestCode, grantResult) -> onShizukuPermissionResult(requestCode, grantResult);
 
     // Чипы-пресеты действия и их id — для обновления подсветки при смене выбора
     // (иначе после выбора нового действия чип продолжает подсвечивать прошлое).
@@ -78,9 +91,23 @@ public class MainActivity extends Activity {
         void onPicked(String actionId);
     }
 
+    /** Контекст исходного picker-а, необходимый для Back и продолжения после разрешения. */
+    private static class ShortcutFlow {
+        final String headerText;
+        final String currentId;
+        final OnActionPicked callback;
+
+        ShortcutFlow(String headerText, String currentId, OnActionPicked callback) {
+            this.headerText = headerText;
+            this.currentId = currentId;
+            this.callback = callback;
+        }
+    }
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        Shizuku.addRequestPermissionResultListener(shizukuPermissionResultListener);
         ui = new Ui(this);
         buildUi();
     }
@@ -89,6 +116,22 @@ public class MainActivity extends Activity {
     protected void onResume() {
         super.onResume();
         refreshAllStates();
+    }
+
+    @Override
+    protected void onDestroy() {
+        shizukuPermissionRequestInFlight = false;
+        shortcutFlowContinuation = null;
+        try {
+            Shizuku.removeRequestPermissionResultListener(shizukuPermissionResultListener);
+        } catch (Exception ignored) {
+        }
+        if (shortcutPickerDialog != null) {
+            shortcutPickerDialog.close();
+            shortcutPickerDialog = null;
+        }
+        dismissDialog();
+        super.onDestroy();
     }
 
     // =========================================================================
@@ -371,6 +414,7 @@ public class MainActivity extends Activity {
 
         scroll.addView(root);
         setContentView(scroll);
+        SystemBarInsets.applyTopInset(scroll);
     }
 
     // =========================================================================
@@ -450,8 +494,9 @@ public class MainActivity extends Activity {
         mainActionTitle.setText(displayNameFor(id));
         mainActionSubtitle.setText(subtitleFor(id));
         mainActionIcon.setImageResource(iconFor(id));
-        int tint = id.startsWith(PrefsHelper.SPECIAL_PREFIX)
-                ? ui.c(Ui.ON_PRIMARY_CONTAINER) : ui.c(Ui.PRIMARY);
+        boolean accented = id != null && (id.startsWith(PrefsHelper.SPECIAL_PREFIX)
+                || ShortcutAction.isAction(id));
+        int tint = accented ? ui.c(Ui.ON_PRIMARY_CONTAINER) : ui.c(Ui.PRIMARY);
         mainActionIcon.setColorFilter(tint, android.graphics.PorterDuff.Mode.SRC_IN);
     }
 
@@ -541,6 +586,7 @@ public class MainActivity extends Activity {
                 {PrefsHelper.SPECIAL_VPN, getString(R.string.name_vpn)},
                 {PrefsHelper.SPECIAL_MENU, getString(R.string.name_menu)},
                 {PrefsHelper.SPECIAL_CIRCLE_TO_SEARCH, getString(R.string.name_cts)},
+                {ACTION_SHORTCUTS, getString(R.string.name_shortcuts)},
         };
         LinearLayout grid = new LinearLayout(this);
         grid.setOrientation(LinearLayout.VERTICAL);
@@ -557,7 +603,8 @@ public class MainActivity extends Activity {
                     id = null;
                     label = "";
                 }
-                boolean selected = id != null && id.equals(currentId);
+                boolean selected = id != null && (ACTION_SHORTCUTS.equals(id)
+                        ? ShortcutAction.isAction(currentId) : id.equals(currentId));
                 LinearLayout cellView = new LinearLayout(this);
                 cellView.setOrientation(LinearLayout.VERTICAL);
                 cellView.setGravity(Gravity.CENTER);
@@ -571,8 +618,12 @@ public class MainActivity extends Activity {
                         cellView.setBackground(ui.rippleOnRounded(ui.alpha(Ui.SURFACE_HIGH, 0x88), 18));
                     }
                     cellView.setOnClickListener(v -> {
-                        dismissDialog();
-                        callback.onPicked(id);
+                        if (ACTION_SHORTCUTS.equals(id)) {
+                            startShortcutFlow(headerText, currentId, callback);
+                        } else {
+                            dismissDialog();
+                            callback.onPicked(id);
+                        }
                     });
                 }
                 ImageView iv = new ImageView(this);
@@ -734,6 +785,140 @@ public class MainActivity extends Activity {
         updateApps.run();
     }
 
+    private void startShortcutFlow(String headerText, String currentId, OnActionPicked callback) {
+        if (shizukuPermissionRequestInFlight) return;
+        continueShortcutFlow(new ShortcutFlow(headerText, currentId, callback));
+    }
+
+    private void continueShortcutFlow(ShortcutFlow flow) {
+        dismissDialog();
+        if (isFinishing() || isDestroyed()) return;
+
+        ShizukuShortcuts.Status status = ShizukuShortcuts.checkStatus();
+        switch (status) {
+            case OK:
+                showShortcutPicker(flow);
+                break;
+            case PERMISSION_DENIED:
+                requestShortcutPermission(flow);
+                break;
+            case UNAVAILABLE:
+                showShortcutDialog(flow, R.string.shortcut_shizuku_unavailable, true, true);
+                break;
+            case PRE_V11:
+                showShortcutDialog(flow, R.string.shortcut_shizuku_pre_v11, false, false);
+                break;
+            case UNSUPPORTED_UID:
+                showShortcutDialog(flow, R.string.shortcut_unsupported_uid, false, false);
+                break;
+            case UNSUPPORTED_API:
+                showShortcutDialog(flow, R.string.shortcut_unsupported_api, false, false);
+                break;
+            default:
+                showShortcutDialog(flow, R.string.shortcut_shizuku_unavailable, true, true);
+                break;
+        }
+    }
+
+    private void showShortcutPicker(final ShortcutFlow flow) {
+        if (shortcutPickerDialog != null) {
+            shortcutPickerDialog.close();
+            shortcutPickerDialog = null;
+        }
+        shortcutPickerDialog = ShortcutPickerDialog.show(this, ui, ShortcutAction.parse(flow.currentId),
+                action -> {
+                    if (action != null) {
+                        flow.callback.onPicked(action.toActionId());
+                    }
+                },
+                () -> showActionPicker(flow.headerText, flow.currentId, flow.callback));
+    }
+
+    private void requestShortcutPermission(ShortcutFlow flow) {
+        if (shizukuPermissionRequestInFlight) return;
+
+        try {
+            if (Shizuku.shouldShowRequestPermissionRationale()) {
+                showShortcutDialog(flow, R.string.shortcut_permission_denied, false, false);
+                return;
+            }
+        } catch (Exception e) {
+            showShortcutDialog(flow, R.string.shortcut_permission_denied, false, false);
+            return;
+        }
+
+        Toast.makeText(this, R.string.shortcut_permission_required, Toast.LENGTH_LONG).show();
+        shortcutFlowContinuation = flow;
+        shizukuPermissionRequestInFlight = true;
+        try {
+            Shizuku.requestPermission(SHIZUKU_PERMISSION_REQUEST_CODE);
+        } catch (Exception e) {
+            shizukuPermissionRequestInFlight = false;
+            shortcutFlowContinuation = null;
+            showShortcutDialog(flow, R.string.shortcut_permission_denied, false, false);
+        }
+    }
+
+    private void onShizukuPermissionResult(int requestCode, int grantResult) {
+        if (requestCode != SHIZUKU_PERMISSION_REQUEST_CODE) return;
+
+        boolean wasRequested = shizukuPermissionRequestInFlight;
+        ShortcutFlow flow = shortcutFlowContinuation;
+        shizukuPermissionRequestInFlight = false;
+        shortcutFlowContinuation = null;
+        if (!wasRequested || flow == null || isFinishing() || isDestroyed()) return;
+
+        if (grantResult == PackageManager.PERMISSION_GRANTED) {
+            continueShortcutFlow(flow);
+        } else {
+            showShortcutDialog(flow, R.string.shortcut_permission_denied, false, false);
+        }
+    }
+
+    private void showShortcutDialog(final ShortcutFlow flow, int messageRes,
+                                    boolean allowRetry, boolean allowOpenShizuku) {
+        dismissDialog();
+        if (isFinishing() || isDestroyed()) return;
+
+        AlertDialog.Builder builder = new AlertDialog.Builder(this)
+                .setTitle(R.string.name_shortcuts)
+                .setMessage(messageRes)
+                .setNegativeButton(R.string.btn_back, (d, which) -> reopenActionPicker(flow));
+        if (allowRetry) {
+            builder.setPositiveButton(R.string.btn_retry,
+                    (d, which) -> continueShortcutFlow(flow));
+        }
+        if (allowOpenShizuku) {
+            Intent launchIntent = null;
+            try {
+                launchIntent = getPackageManager().getLaunchIntentForPackage(SHIZUKU_PACKAGE);
+            } catch (Exception ignored) {
+            }
+            if (launchIntent != null) {
+                final Intent shizukuIntent = launchIntent;
+                builder.setNeutralButton(R.string.btn_open_shizuku, (d, which) -> {
+                    try {
+                        startActivity(shizukuIntent);
+                    } catch (Exception ignored) {
+                    }
+                });
+            }
+        }
+
+        currentDialog = builder.create();
+        currentDialog.setOnDismissListener(d -> {
+            if (currentDialog == d) currentDialog = null;
+        });
+        currentDialog.show();
+        applyDialogBackground(currentDialog);
+    }
+
+    private void reopenActionPicker(ShortcutFlow flow) {
+        dismissDialog();
+        if (isFinishing() || isDestroyed()) return;
+        showActionPicker(flow.headerText, flow.currentId, flow.callback);
+    }
+
     /** Округлый фон диалога в цветах Material You — вместо системных «чужих» рамок. */
     private void applyDialogBackground(AlertDialog dialog) {
         try {
@@ -859,6 +1044,18 @@ public class MainActivity extends Activity {
         if (id == null || id.trim().isEmpty()) {
             return getString(R.string.action_none_selected);
         }
+        if (ACTION_SHORTCUTS.equals(id)) {
+            return getString(R.string.name_shortcuts);
+        }
+        if (ShortcutAction.isAction(id)) {
+            ShortcutAction action = ShortcutAction.parse(id);
+            if (action == null) return id;
+            String label = action.getLabel();
+            if (label == null || label.trim().isEmpty()) {
+                label = action.getShortcutId();
+            }
+            return appLabel(action.getPackageName()) + " — " + label;
+        }
         switch (id) {
             case PrefsHelper.SPECIAL_TORCH:
                 return getString(R.string.name_torch);
@@ -886,6 +1083,11 @@ public class MainActivity extends Activity {
         if (id == null || id.trim().isEmpty()) {
             return getString(R.string.subtitle_not_set);
         }
+        if (ShortcutAction.isAction(id)) {
+            ShortcutAction action = ShortcutAction.parse(id);
+            if (action == null) return id;
+            return action.getPackageName() + " · " + action.getShortcutId();
+        }
         if (id.startsWith(PrefsHelper.SPECIAL_PREFIX)) {
             return id;
         }
@@ -893,6 +1095,10 @@ public class MainActivity extends Activity {
     }
 
     private int iconFor(String id) {
+        if (id == null) return R.drawable.ic_action_app;
+        if (ACTION_SHORTCUTS.equals(id) || ShortcutAction.isAction(id)) {
+            return R.drawable.ic_action_shortcut;
+        }
         switch (id) {
             case PrefsHelper.SPECIAL_TORCH:
                 return R.drawable.ic_action_torch;
