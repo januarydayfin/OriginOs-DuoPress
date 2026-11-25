@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
@@ -141,41 +142,51 @@ internal fun ActionSheet(
                 shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
                 tonalElevation = 6.dp,
             ) {
-                Column(
+                LazyColumn(
                     modifier = Modifier
                         .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom))
-                        .padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 16.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                        // Примерно прежняя высота списка плюс место для заголовка на обычном экране.
+                        .heightIn(max = screenHeight * 0.55f + 88.dp),
+                    contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
-                    Box(
-                        Modifier.align(Alignment.CenterHorizontally)
-                            .size(width = 32.dp, height = 4.dp)
-                            .background(MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(2.dp)),
-                    )
-                    Text(
-                        stringResource(R.string.menu_title),
-                        style = MaterialTheme.typography.titleMedium,
-                        modifier = Modifier.semantics { heading() },
-                    )
-                    Text(
-                        stringResource(R.string.menu_subtitle),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        style = MaterialTheme.typography.bodySmall,
-                    )
-                    when {
-                        items == null -> CircularProgressIndicator(Modifier.align(Alignment.CenterHorizontally))
-                        items.isEmpty() -> Text(
-                            stringResource(R.string.menu_empty),
-                            modifier = Modifier.padding(vertical = 16.dp),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        else -> LazyColumn(
-                            Modifier.weight(1f, fill = false).heightIn(max = screenHeight * 0.55f),
-                            verticalArrangement = Arrangement.spacedBy(4.dp),
+                    item {
+                        Column(
+                            Modifier.fillMaxWidth().padding(bottom = 2.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp),
                         ) {
-                            items(items, key = { it.id }) { item ->
-                                MenuActionRow(item, enabled = !closing) { onSelected(item.id) }
+                            Box(
+                                Modifier.align(Alignment.CenterHorizontally)
+                                    .size(width = 32.dp, height = 4.dp)
+                                    .background(MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(2.dp)),
+                            )
+                            Text(
+                                stringResource(R.string.menu_title),
+                                style = MaterialTheme.typography.titleMedium,
+                                modifier = Modifier.semantics { heading() },
+                            )
+                            Text(
+                                stringResource(R.string.menu_subtitle),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                        }
+                    }
+                    when {
+                        items == null -> item {
+                            Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                                CircularProgressIndicator()
                             }
+                        }
+                        items.isEmpty() -> item {
+                            Text(
+                                stringResource(R.string.menu_empty),
+                                modifier = Modifier.padding(vertical = 16.dp),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        else -> items(items, key = { it.id }) { item ->
+                            MenuActionRow(item, enabled = !closing) { onSelected(item.id) }
                         }
                     }
                 }
