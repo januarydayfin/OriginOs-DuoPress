@@ -17,7 +17,7 @@
     <string name="card_action_title">Double press action</string>
     <string name="main_action_label">Launch target</string>
     <string name="btn_change">Change</string>
-    <string name="card_action_hint">An app or one of the special actions: flashlight, camera, VPN, Circle to Search or the action menu. Circle to Search works like MiCTS — via VoiceInteractionService, no root and no accessibility.</string>
+    <string name="card_action_hint">An app, an app shortcut, or one of the special actions: flashlight, camera, VPN, Circle to Search or the action menu. App shortcuts require Android 11+ and Shizuku installed and started via ADB (no root). Circle to Search works like MiCTS — via VoiceInteractionService, no root and no accessibility.</string>
     <string name="action_none_selected">Not selected</string>
     <string name="subtitle_not_set">Not set</string>
 
@@ -38,6 +38,7 @@
     <string name="name_vpn">Toggle VPN</string>
     <string name="name_vpn_short">VPN: %1$s</string>
     <string name="name_menu">Action menu</string>
+    <string name="name_shortcuts">Shortcuts</string>
     <string name="vpn_name_generic">VPN</string>
 
     <!-- Lock screen -->
@@ -97,6 +98,25 @@
     <string name="picker_search_hint">Search by name or package…</string>
     <string name="picker_no_apps">Nothing found</string>
     <string name="btn_close">Close</string>
+
+    <!-- App shortcut picker -->
+    <string name="shortcut_picker_title">Choose a shortcut</string>
+    <string name="shortcut_picker_search_hint">Search apps and shortcuts…</string>
+    <string name="shortcut_picker_loading">Loading shortcuts…</string>
+    <string name="shortcut_picker_no_shortcuts">No shortcuts available</string>
+    <string name="shortcut_picker_loading_error">Failed to load shortcuts: %1$s</string>
+    <string name="shortcut_shizuku_unavailable">Shortcuts require Shizuku to be installed and started via ADB</string>
+    <string name="shortcut_shizuku_pre_v11">Shortcuts require Shizuku API 11 or newer</string>
+    <string name="shortcut_permission_required">Grant Double Power Key access in Shizuku</string>
+    <string name="shortcut_permission_denied">Shizuku permission was not granted</string>
+    <string name="shortcut_unsupported_uid">Only Shizuku via ADB without root is supported (shell UID)</string>
+    <string name="shortcut_unsupported_api">Shortcuts require Android 11 (API 30) or newer</string>
+    <string name="shortcut_type_manifest">Manifest</string>
+    <string name="shortcut_type_dynamic">Dynamic</string>
+    <string name="shortcut_type_pinned">Pinned</string>
+    <string name="btn_retry">Retry</string>
+    <string name="btn_back">Back</string>
+    <string name="btn_open_shizuku">Open Shizuku</string>
 
     <!-- Power handler -->
     <string name="card_handler_title">Power key handler</string>
@@ -158,6 +178,9 @@
     <string name="log_cts_false">Circle to Search: the system returned false. Assistant: %1$s</string>
     <string name="log_cts_error">Circle to Search failed: %1$s</string>
     <string name="log_wallet_ok">Vivo Wallet key launched (NewSwipeActivity)</string>
+    <string name="log_shortcut_ok">Shortcut launched: %1$s</string>
+    <string name="log_shortcut_failed">Failed to launch shortcut: %1$s</string>
+    <string name="log_shortcut_invalid">Invalid shortcut action: %1$s</string>
     <string name="log_app_ok">Launched: %1$s</string>
     <string name="log_app_error">Launch error: %1$s</string>
     <string name="log_app_not_found">App not found or not launchable: %1$s</string>

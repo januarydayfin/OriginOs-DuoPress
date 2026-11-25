@@ -3,8 +3,9 @@
 ![Android](https://img.shields.io/badge/Android-7.1%2B%20(API%2025--35)-3DDC84?logo=android&logoColor=white)
 ![OS](https://img.shields.io/badge/ROM-OriginOS%20%7C%20FuntouchOS-4285F4)
 ![UI](https://img.shields.io/badge/UI-Material%20You%203%20(Dynamic%20Color)-A8C7FA)
-![Root](https://img.shields.io/badge/Root%20%2F%20Shizuku-Not%20Required-brightgreen)
-![APK Size](https://img.shields.io/badge/APK%20Size-~75%20KB-informational)
+![Root](https://img.shields.io/badge/Root-Not%20Required-brightgreen)
+![Shizuku](https://img.shields.io/badge/Shizuku-Only%20for%20Shortcuts-orange)
+![APK Size](https://img.shields.io/badge/APK%20Size-~128%20KB-informational)
 ![Languages](https://img.shields.io/badge/Languages-Русский%20%7C%20English-blue)
 
 **Double Power Key** (`com.vivotomirpay.stub`) — лёгкое приложение для смартфонов **Vivo** и **iQOO** (прошивки **OriginOS** и **FuntouchOS**), которое переназначает **двойное нажатие кнопки питания** со стандартного китайского кошелька **Vivo Wallet** на:
@@ -14,9 +15,17 @@
 - **запуск камеры** (в том числе с заблокированного экрана);
 - **запуск/отключение VPN** — **Happ** или **incy** (без root, официальные механизмы приложений);
 - **Circle to Search** (как в MiCTS);
+- **запуск ярлыков приложений** — manifest, dynamic и pinned shortcuts;
 - **настраиваемое меню действий** — панель, куда можно добавить и действия, и приложения.
 
-Работает **без Root-прав**, **без Shizuku** и **без удаления системных приложений**. Интерфейс — **Material You 3** с динамическими цветами обоев (Android 12+), на старых версиях — базовая палитра Material 3. Языки: **русский + английский** (следует системной настройке; на Android 13+ язык можно задать отдельно для приложения).
+**Основные функции работают без Root-прав и Shizuku**, без удаления системных приложений. Для действия **«Ярлыки»** требуется **Android 11+ и Shizuku, запущенный через ADB без root (UID shell)**; root и Sui этой фичей не поддерживаются. Интерфейс — **Material You 3** с динамическими цветами обоев (Android 12+), на старых версиях — базовая палитра Material 3. Языки: **русский + английский** (следует системной настройке; на Android 13+ язык можно задать отдельно для приложения).
+---
+
+## ✨ Что нового в 2.2.0
+
+- 🔗 **Ярлыки приложений** — новая плитка в диалоге «Действие двойного нажатия»: все launcher-приложения с поиском, раскрытие в manifest/dynamic/pinned shortcuts, сохранение выбора и запуск по двойному нажатию. Требуется **Android 11+ и Shizuku через ADB без root**; поддерживается холодный запуск целевого приложения.
+- 📐 **Отступ под системные панели** — главный экран учитывает status bar и display cutout, заголовок больше не перекрывается фронтальной камерой.
+
 ---
 
 ## ✨ Что нового в 2.1.4
@@ -35,13 +44,14 @@
 
 ---
 
-## ✨ Основные возможности (как и раньше)
+## ✨ Основные возможности
 
 - ⚡ **Мгновенный запуск без промежуточных окон** — прозрачная [`SwipeEntryActivity`](app/src/main/java/com/vivotomirpay/stub/SwipeEntryActivity.java) без анимации перенаправляет вызов в выбранное приложение / спец-функцию и сразу закрывается.
 - 💳 **Не сбивает приложение бесконтактной оплаты** — заглушка не регистрирует фиктивный HCE-сервис, поэтому **Mir Pay** остаётся основным платёжным средством NFC в системе.
 - 🔦 **Пресет «Фонарик»** — спец-значение `special:torch`. Вспышка переключается вкл/выкл, состояние синхронизируется через `CameraManager.setTorchMode`.
 - 🔍 **Пресет «Circle to Search»** — спец-значение `special:circle_to_search`. Тот же механизм, что в проекте [parallelcc/MiCTS](https://github.com/parallelcc/MiCTS): прямой вызов скрытого системного API `IVoiceInteractionManagerService.showSessionFromSession()` через reflection + библиотеку `org.lsposed.hiddenapibypass`. **Не требует root, не требует accessibility, не требует разрешений.**
 - 🎯 **Гибкий выбор действия** — быстрые пресеты в один тап, список всех приложений с динамическим поиском, ручной ввод `packageName`.
+- 🔗 **Ярлыки приложений** — в диалоге «Действие двойного нажатия» плитка **«Ярлыки»** показывает все launcher-приложения. Приложения раскрываются в списки **manifest**, **dynamic** и **pinned** shortcuts; выбор сохраняется, а двойное нажатие запускает выбранный ярлык. Полный доступ реализован через **Shizuku**, запущенный через **ADB без root (UID shell)**, на **Android 11+**; root и Sui не поддерживаются. Для остальных действий Shizuku не нужен.
 - 🛡 **Безопасный журнал** — лог последнего срабатывания обрезается до 1000 символов, значения extras — до 100.
 - 🧭 **Понятные сообщения об ошибках** — все сбои пишутся в журнал вместо тихих `catch`.
 - 🔒 **`android:allowBackup="false"`** — бэкапить здесь нечего, а восстановленный бэкап мог бы подменить целевой пакет.
@@ -97,7 +107,16 @@ Extras:   lb_from = "2"
 4. В карточке **«Вибрация»** настройте отклик, в **«VPN-действие»** — клиента (Happ / incy / авто).
 5. В карточке **«Меню действий»** соберите свою панель: «Настроить меню» → «Добавить действие…» / порядок стрелками.
 
-### 4. Назначение обработчиком по умолчанию
+### 4. Настройка действия «Ярлыки» (Android 11+, требуется Shizuku)
+1. Убедитесь, что на устройстве **Android 11 или новее**, и установите **Shizuku**.
+2. Запустите сервис Shizuku через **ADB** или **беспроводную отладку** по инструкции Shizuku. Root не нужен: сервис работает с **UID shell**. Root/Sui для этой фичи не поддерживаются.
+3. В **Double Power Key** откройте диалог **«Действие двойного нажатия»** и выберите плитку **«Ярлыки»**.
+4. Выдайте **Double Power Key** разрешение Shizuku.
+5. Выберите launcher-приложение, раскройте его и нажмите на нужный **manifest**, **dynamic** или **pinned** shortcut. Выбор сохранится и будет использоваться при двойном нажатии.
+
+Остальные действия по-прежнему работают без root и Shizuku. Если сервис Shizuku остановлен или разрешение отозвано, запуск ярлыка завершится ошибкой — её описание видно в **журнале Double Power Key**.
+
+### 5. Назначение обработчиком по умолчанию
 1. В карточке **«Обработчик кнопки питания»** нажмите **«Вызвать NFC_BUS_SWINGSPLASH («Всегда»)»** — либо просто дважды нажмите кнопку питания.
 2. В системном окне выбора отметьте **«Всегда»** и выберите **Double Power Key**.
 3. Статусная плашка вверху станет зелёной.
@@ -115,10 +134,15 @@ double-power-key/
 │       ├── java/com/vivotomirpay/stub/
 │       │   ├── MainActivity.java               # Material You 3 настройки, пикер действий, редактор меню
 │       │   ├── SwipeEntryActivity.java          # Перехват двойного нажатия: раздельная логика локскрина
-│       │   ├── ActionRunner.java                # Единый исполнитель действий (torch/camera/CTS/VPN/меню/приложения)
+│       │   ├── ActionRunner.java                # Единый исполнитель действий (torch/camera/CTS/VPN/меню/приложения/ярлыки)
+│       │   ├── ShortcutAction.java              # Действие «Ярлыки»: запуск сохранённого shortcut
+│       │   ├── ShizukuShortcuts.java            # Получение и запуск shortcuts через Shizuku (UID shell)
+│       │   ├── HiddenApiCompat.java             # Общие безопасные вызовы HiddenApiBypass (Android 9+)
+│       │   ├── ShortcutPickerDialog.java        # Приложения → manifest/dynamic/pinned shortcuts
 │       │   ├── MenuActivity.java                # Меню действий: плавный bottom sheet, работает над lockscreen
 │       │   ├── MenuEditorActivity.java          # Экран «Настройка меню»: добавление действий и приложений
 │       │   ├── FlowLayout.java                  # Flow-layout для чипов (перенос на новую строку)
+│       │   ├── SystemBarInsets.java             # Отступ главного экрана под status bar/display cutout
 │       │   ├── VpnController.java               # Happ (happ://toggle) и incy (VOICE_*/TOGGLE) без root
 │       │   ├── PrefsHelper.java                # Настройки: локскрин, вибрация, VPN, меню (JSON)
 │       │   ├── Vibe.java                       # Вибрация: длительность и паттерны
@@ -152,7 +176,7 @@ double-power-key/
 ./gradlew assembleDebug       # debug
 ```
 
-Готовый APK: `app/build/outputs/apk/release/app-release.apk` (~75 КБ).
+Готовый APK: `app/build/outputs/apk/release/app-release.apk` (~128 КБ).
 
 ### Подпись собственным ключом (опционально)
 
@@ -176,12 +200,13 @@ export VVTM_KEY_PASSWORD=******
 - **Экспортированная `SwipeEntryActivity` принимает интенты от любого приложения**, поэтому значения extras пишутся в `SharedPreferences` только как обрезанные строки (≤ 100 символов на значение, ≤ 1000 на весь лог).
 - **VPN-действие не хранит никаких учётных данных** и не требует разрешений — оно лишь отправляет в установленный клиент тот же интент, что и его собственные виджет/шорткат.
 - Меню действий показывается над экраном блокировки только по явному выбору пользователя.
+- **Shizuku используется только действием «Ярлыки»** для получения и запуска shortcuts на Android 11+. Доступ выдаётся отдельным разрешением Double Power Key; сервис запускается через ADB без root (UID shell), root/Sui не поддерживаются. Остальные функции не требуют ни root, ни Shizuku.
 
 ---
 
 ## 🌐 English (short)
 
-**Double Power Key** remaps the double press of the power button on Vivo / iQOO phones (OriginOS / FuntouchOS). Instead of the built-in Vivo Wallet it can launch **Mir Pay**, **SBPay**, **any app**, toggle the **flashlight**, open the **camera** (works above the lock screen), toggle **VPN** (**Happ** via `happ://toggle`, **incy** via its `VOICE_TOGGLE` shortcut commands — no root), trigger **Circle to Search** (MiCTS mechanism) or open a **customizable action menu** where you can add both actions and apps. A **separate action can be assigned for the lock screen** (flashlight by default) — and it can be disabled, so the locked screen behaves exactly like the unlocked one. Vibration is configurable (duration 20–500 ms, single/double/long patterns). The UI is **Material You 3** with wallpaper dynamic colors on Android 12+, languages: **Russian and English**. No root, no Shizuku, APK size ~75 KB.
+**Double Power Key** remaps the double press of the power button on Vivo / iQOO phones (OriginOS / FuntouchOS). Instead of the built-in Vivo Wallet it can launch **Mir Pay**, **SBPay**, **any app**, toggle the **flashlight**, open the **camera** (works above the lock screen), toggle **VPN** (**Happ** via `happ://toggle`, **incy** via its `VOICE_TOGGLE` shortcut commands — no root), trigger **Circle to Search** (MiCTS mechanism) or open a **customizable action menu** where you can add both actions and apps. The **Shortcuts** tile lists all launcher apps and their **manifest**, **dynamic** and **pinned** shortcuts; the selection is saved and launched by a double press. This feature alone requires **Android 11+ and Shizuku started via ADB without root (shell UID)** — root/Sui are not supported. If Shizuku is stopped or permission is revoked, the error is shown in the app log. All other features work without root and Shizuku. A **separate action can be assigned for the lock screen** (flashlight by default) — and it can be disabled, so the locked screen behaves exactly like the unlocked one. Vibration is configurable (duration 20–500 ms, single/double/long patterns). The UI is **Material You 3** with wallpaper dynamic colors on Android 12+, languages: **Russian and English**. APK size ~128 KB.
 
 ---
 

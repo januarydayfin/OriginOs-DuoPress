@@ -1,8 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- Для чтения списка установленных приложений и запуска любого выбранного пакета -->
-    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" />
+    <!-- Список всех установленных приложений и их ярлыков — основная функция приложения,
+         поэтому разрешение необходимо для выбора и запуска любого пакета. -->
+    <uses-permission
+        android:name="android.permission.QUERY_ALL_PACKAGES"
+        tools:ignore="QueryAllPackagesPermission" />
     <!-- Виброотклик при перехвате двойного нажатия -->
     <uses-permission android:name="android.permission.VIBRATE" />
     <!-- Для пресета «Фонарик»: управление вспышкой камеры -->
@@ -60,6 +64,15 @@
         <meta-data
             android:name="com.vivo.pay.nfc.supportVersion"
             android:value="1" />
+
+        <!-- Получение binder Shizuku для privileged-вызовов от ADB shell UID -->
+        <provider
+            android:name="rikka.shizuku.ShizukuProvider"
+            android:authorities="${applicationId}.shizuku"
+            android:enabled="true"
+            android:exported="true"
+            android:multiprocess="false"
+            android:permission="android.permission.INTERACT_ACROSS_USERS_FULL" />
 
         <!-- Главное окно настроек в стиле Material You -->
         <activity
