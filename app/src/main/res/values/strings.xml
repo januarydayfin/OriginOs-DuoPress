@@ -41,8 +41,6 @@
     </plurals>
 
     <!-- Статус обработчика -->
-    <string name="status_default_ok">✓ Двойное нажатие питания: эта заглушка назначена обработчиком по умолчанию</string>
-    <string name="status_default_other">⚠ Двойное нажатие питания: сейчас выбрано %1$s</string>
     <string name="status_default_none">ℹ Обработчик двойного нажатия ещё не зафиксирован — вызовите системный диалог и выберите «Всегда»</string>
     <string name="handler_status_registered">Зарегистрированные обработчики NFC_BUS_SWINGSPLASH (%1$d):</string>
 
@@ -141,6 +139,7 @@
     <string name="picker_manual_package_hint">Имя пакета</string>
     <string name="picker_manual_confirm">Выбрать пакет</string>
     <string name="picker_loading_apps">Загрузка приложений…</string>
+    <string name="picker_filtering_apps">Поиск…</string>
     <string name="picker_apps_failed">Не удалось загрузить приложения</string>
     <string name="picker_apps_failed_detail">Не удалось загрузить приложения: %1$s</string>
     <string name="picker_save_failed">Не удалось сохранить действие. Попробуйте выбрать ещё раз.</string>
@@ -175,11 +174,11 @@
     <!-- Обработчик кнопки питания -->
     <string name="card_handler_title">Обработчик кнопки питания</string>
     <string name="btn_test">Проверить действие</string>
-    <string name="btn_test_hint">Имитирует двойное нажатие питания, не меняя системного обработчика.</string>
-    <string name="btn_resolve">Вызвать NFC_BUS_SWINGSPLASH («Всегда»)</string>
-    <string name="btn_resolve_hint">Отправляет тот же системный Intent, что Vivo при двойном нажатии. В окне выбора отметьте «Всегда» — и заглушка станет постоянным обработчиком.</string>
-    <string name="btn_appinfo">Свойства текущего обработчика</string>
-    <string name="btn_appinfo_hint">Открывает настройки приложения, назначенного обработчиком. Там можно сбросить выбор, чтобы снова вызвать окно «Всегда».</string>
+    <string name="btn_test_hint">Запускает действие напрямую. Не проверяет физическую кнопку или системного обработчика и не меняет назначение.</string>
+    <string name="btn_resolve">Вызвать системный выбор обработчика</string>
+    <string name="btn_resolve_hint">Отправляет системный запрос Vivo. Если Android покажет выбор, назначение можно изменить в этом окне.</string>
+    <string name="btn_appinfo">Сведения о приложении</string>
+    <string name="btn_appinfo_hint">Открывает системные сведения об обработчике или об этом приложении. Можно ли сбросить назначение по умолчанию, зависит от прошивки.</string>
 
     <!-- Ассистент -->
     <string name="card_assistant_title">Ассистент по умолчанию</string>

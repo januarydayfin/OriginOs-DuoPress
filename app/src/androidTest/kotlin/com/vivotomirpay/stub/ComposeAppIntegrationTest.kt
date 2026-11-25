@@ -12,6 +12,7 @@ import android.os.Bundle
 import android.provider.Settings
 import android.view.KeyEvent
 import androidx.annotation.StringRes
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertIsDisplayed
@@ -102,6 +103,31 @@ class ComposeAppIntegrationTest {
         systemBack()
         // Back from the launcher root backgrounds the task on Android 12+, and finishes on older versions.
         compose.waitUntil(5_000) { !scenario.state.isAtLeast(Lifecycle.State.STARTED) }
+    }
+
+    @Test
+    fun staleShortcutsClickCannotNavigateInTheSameTurnAsActionSave() {
+        assertTrue(prefs.edit().putString("target_package", "special:camera").commit())
+        val shizuku = fakeShizuku()
+        launch()
+        openActionPicker()
+        val selectTorch = checkNotNull(
+            compose.onNode(text(R.string.preset_torch)).fetchSemanticsNode().config[SemanticsActions.OnClick].action,
+        )
+        compose.onNode(hasScrollAction()).performScrollToNode(text(R.string.name_shortcuts))
+        val openShortcuts = checkNotNull(
+            compose.onNode(text(R.string.name_shortcuts)).fetchSemanticsNode().config[SemanticsActions.OnClick].action,
+        )
+
+        // Actual launcher callbacks in one main turn, before Compose sees Saving or the host can pop.
+        compose.runOnIdle {
+            selectTorch()
+            openShortcuts()
+        }
+        compose.waitUntil(5_000) { prefs.getString("target_package", null) == "special:torch" }
+        compose.onNode(heading(R.string.shortcut_picker_title)).assertDoesNotExist()
+        assertActions()
+        assertTrue(shizuku.requests.isEmpty())
     }
 
     @Test
@@ -304,7 +330,6 @@ class ComposeAppIntegrationTest {
             blockWithoutActivityResult(IntentFilter("vivo.intent.action.NFC_BUS_SWINGSPLASH")) {
                 compose.onNode(text(R.string.btn_test)).performScrollTo().performClick()
                 compose.onNode(expectedLabel).assertIsDisplayed()
-                compose.onNode(text(R.string.status_default_ok)).assertDoesNotExist()
                 assertEquals(beforeTestAction, probe.calls.get())
             }
             compose.onNode(text(R.string.btn_appinfo)).performScrollTo().performClick()
@@ -316,9 +341,60 @@ class ComposeAppIntegrationTest {
         assertEquals(ComponentName("com.vivotomirpay.stub.debug", "com.vivotomirpay.stub.SwipeEntryActivity"), intents[0].component)
         assertEquals("vivo.intent.action.NFC_BUS_SWINGSPLASH", intents[0].action)
         assertEquals("2", intents[0].getStringExtra("lb_from"))
+        assertEquals(setOf("lb_from"), intents[0].extras?.keySet())
         assertEquals(null, intents[0].categories)
+        assertEquals(null, intents[0].data)
+        assertEquals(null, intents[0].`package`)
+        assertEquals(0, intents[0].flags)
         assertEquals(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, intents[1].action)
         assertEquals("package:example.other.handler", intents[1].dataString)
+    }
+
+    @Test
+    fun diagnosticSelfResolutionUsesNeutralStatusAndOpensOwnVariantDetails() {
+        useHandlerProbe(TestHandlerProbe(HandlerStatus.ThisApp))
+        launch()
+        tab(R.string.nav_diagnostics).performClick()
+        val status = hasText(context.getString(R.string.actions_handler_current, context.getString(R.string.app_name)))
+        compose.waitUntil(5_000) { compose.onAllNodes(status).fetchSemanticsNodes().isNotEmpty() }
+        compose.onNode(status).assertIsDisplayed()
+        compose.onNode(text(R.string.btn_resolve)).assertDoesNotExist()
+
+        val intents = captureHandlerDetailsWithoutActivityResult {
+            compose.onNode(text(R.string.btn_appinfo)).performScrollTo().performClick()
+        }
+        assertEquals("package:com.vivotomirpay.stub.debug", intents.single().dataString)
+    }
+
+    @Test
+    fun diagnosticNoSpecificHandlerKeepsResolverAndSeparateOwnVariantDetails() {
+        val probe = TestHandlerProbe(HandlerStatus.NoSpecificHandler)
+        useHandlerProbe(probe)
+        launch()
+        tab(R.string.nav_diagnostics).performClick()
+        awaitText(R.string.actions_handler_no_specific)
+        compose.onNode(text(R.string.btn_resolve)).performScrollTo().assertIsDisplayed()
+        val resolverIntents = captureIntents { null } doWhile {
+            val filter = IntentFilter("vivo.intent.action.NFC_BUS_SWINGSPLASH").apply {
+                addCategory(Intent.CATEGORY_DEFAULT)
+            }
+            blockWithoutActivityResult(filter) {
+                compose.onNode(text(R.string.btn_resolve)).performClick()
+                compose.waitForIdle()
+            }
+        }
+        val resolver = resolverIntents.single()
+        assertEquals("vivo.intent.action.NFC_BUS_SWINGSPLASH", resolver.action)
+        assertEquals(setOf(Intent.CATEGORY_DEFAULT), resolver.categories)
+        assertEquals(null, resolver.component)
+        assertEquals(null, resolver.`package`)
+        assertEquals("2", resolver.getStringExtra("lb_from"))
+        awaitText(R.string.actions_handler_no_specific)
+        val intents = captureHandlerDetailsWithoutActivityResult {
+            compose.onNode(text(R.string.btn_appinfo)).performScrollTo().performClick()
+            compose.waitForIdle()
+        }
+        assertEquals("package:com.vivotomirpay.stub.debug", intents.single().dataString)
     }
 
     @Test
@@ -382,7 +458,7 @@ class ComposeAppIntegrationTest {
     }
 
     private fun awaitOtherHandler(): SemanticsMatcher {
-        val label = hasText(context.getString(R.string.status_default_other, "Other handler"))
+        val label = hasText(context.getString(R.string.actions_handler_current, "Other handler"))
         compose.waitUntil(5_000) { compose.onAllNodes(label).fetchSemanticsNodes().isNotEmpty() }
         return label
     }

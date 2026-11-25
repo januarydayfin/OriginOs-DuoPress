@@ -28,6 +28,7 @@ class DiagnosticsViewModelTest {
     private val dispatcher = StandardTestDispatcher()
     private val repository = Task3SettingsRepository(triggerLog = "Vivo trigger → Mir Pay")
     private val wallet = HandlerCandidate("org.example.wallet", "Wallet")
+    private val ownPackage = "org.example.current.debug"
     private val other = HandlerStatus.OtherApp(wallet.packageName, wallet.label)
     private var handler = HandlerSnapshot(HandlerStatus.NoSpecificHandler, emptyList())
     private lateinit var model: DiagnosticsViewModel
@@ -35,7 +36,7 @@ class DiagnosticsViewModelTest {
     @Before
     fun setMain() {
         Dispatchers.setMain(dispatcher)
-        model = DiagnosticsViewModel(repository, HandlerProbe { handler }, dispatcher)
+        model = DiagnosticsViewModel(repository, HandlerProbe { handler }, ownPackage, dispatcher)
     }
 
     @After
@@ -97,14 +98,43 @@ class DiagnosticsViewModelTest {
         model.onIntent(DiagnosticsIntent.Resume)
         assertFalse(model.acknowledgePlatformRequest(resolver.id))
         model.onIntent(DiagnosticsIntent.ConfigureHandler)
+        model.onIntent(DiagnosticsIntent.OpenAppDetails)
         assertNull(model.state.value.platformRequest)
         runCurrent()
 
         model.onIntent(DiagnosticsIntent.ConfigureHandler)
+        assertNull(model.state.value.platformRequest)
+        model.onIntent(DiagnosticsIntent.OpenAppDetails)
         val details = checkNotNull(model.state.value.platformRequest)
         assertEquals(PlatformCommand.OpenAppDetails(wallet.packageName), details.command)
         assertFalse(model.acknowledgePlatformRequest(resolver.id))
         assertTrue(model.acknowledgePlatformRequest(details.id))
+    }
+
+    @Test
+    fun appDetailsUseFreshStatusAndRejectLoadingBusyOrRevokedRequests() = runTest {
+        model.onIntent(DiagnosticsIntent.OpenAppDetails)
+        assertNull(model.state.value.platformRequest)
+        model.onIntent(DiagnosticsIntent.Resume)
+        runCurrent()
+        model.onIntent(DiagnosticsIntent.OpenAppDetails)
+        val own = checkNotNull(model.state.value.platformRequest)
+        assertEquals(PlatformCommand.OpenAppDetails(ownPackage), own.command)
+        model.onIntent(DiagnosticsIntent.TestAction)
+        assertEquals(own, model.state.value.platformRequest)
+
+        handler = HandlerSnapshot(other, listOf(wallet))
+        model.onIntent(DiagnosticsIntent.Resume)
+        assertFalse(model.acknowledgePlatformRequest(own.id))
+        model.onIntent(DiagnosticsIntent.OpenAppDetails)
+        assertNull(model.state.value.platformRequest)
+        runCurrent()
+        model.onIntent(DiagnosticsIntent.OpenAppDetails)
+        val fresh = checkNotNull(model.state.value.platformRequest)
+        assertEquals(PlatformCommand.OpenAppDetails(wallet.packageName), fresh.command)
+        assertTrue(model.acknowledgePlatformRequest(fresh.id))
+        model.onIntent(DiagnosticsIntent.OpenAppDetails)
+        assertNull(model.state.value.platformRequest)
     }
 
     @Test

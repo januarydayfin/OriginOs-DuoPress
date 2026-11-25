@@ -77,6 +77,7 @@ private fun ShortcutPickerContent(
                         onRetry = { onIntent(ShortcutPickerIntent.RetryApps) },
                     )
                 }
+                state.filteringApps -> item("filtering") { PickerMessage(stringResource(R.string.picker_filtering_apps)) }
                 state.visibleApps.isEmpty() -> item("empty") {
                     PickerMessage(stringResource(R.string.picker_no_apps))
                 }
@@ -86,7 +87,7 @@ private fun ShortcutPickerContent(
                         ExpandableApp(row, loadAppIcon, onToggle = { onIntent(ShortcutPickerIntent.ToggleApp(packageName)) })
                     }
                     shortcutChildren(
-                        row, state.selectedShortcut, loadShortcutIcon, onIntent,
+                        row, state.query, state.selectedShortcut, loadShortcutIcon, onIntent,
                         enabled = state.selection != PickerSelection.Saving && !state.selectionComplete,
                     )
                 }
@@ -161,6 +162,7 @@ private fun ExpandableApp(
 
 private fun LazyListScope.shortcutChildren(
     row: ShortcutAppRow,
+    query: String,
     current: ShortcutAction?,
     loadIcon: suspend (ShortcutEntry) -> ImageBitmap?,
     onIntent: (ShortcutPickerIntent) -> Unit,
@@ -196,7 +198,7 @@ private fun LazyListScope.shortcutChildren(
                     ),
                     selected = current?.packageName == packageName && current.shortcutId == shortcut.id,
                     enabled = enabled,
-                    onClick = { onIntent(ShortcutPickerIntent.PickShortcut(packageName, shortcut.id)) },
+                    onClick = { onIntent(ShortcutPickerIntent.PickShortcut(packageName, shortcut.id, query)) },
                     leading = { AppIcon(shortcut, loadIcon = { loadIcon(shortcut) }) },
                     modifier = indent,
                 )

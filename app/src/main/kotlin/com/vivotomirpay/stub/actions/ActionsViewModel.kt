@@ -46,7 +46,7 @@ sealed interface ActionsIntent {
     data object RefreshHandler : ActionsIntent
     data object ResolveHandler : ActionsIntent
     data class OpenHandlerDetails(val packageName: String) : ActionsIntent
-    data class SetLockscreenEnabled(val enabled: Boolean) : ActionsIntent
+    data object ToggleLockscreen : ActionsIntent
     data class SelectLockscreenAction(val id: String) : ActionsIntent
 }
 
@@ -89,9 +89,11 @@ class ActionsViewModel(
             ActionsIntent.ResolveHandler -> requestPlatformCommand(PlatformCommand.ResolveHandler)
             is ActionsIntent.OpenHandlerDetails ->
                 requestPlatformCommand(PlatformCommand.OpenAppDetails(intent.packageName))
-            is ActionsIntent.SetLockscreenEnabled -> save(SettingsChange.LockscreenEnabled(intent.enabled))
+            ActionsIntent.ToggleLockscreen -> save {
+                SettingsChange.LockscreenEnabled(!repository.snapshot().lockscreenEnabled)
+            }
             is ActionsIntent.SelectLockscreenAction -> if (intent.id in lockscreenActionIds) {
-                save(SettingsChange.LockscreenAction(intent.id))
+                save { SettingsChange.LockscreenAction(intent.id) }
             }
         }
     }
@@ -155,10 +157,10 @@ class ActionsViewModel(
         }
     }
 
-    private fun save(change: SettingsChange) {
+    private fun save(change: () -> SettingsChange) {
         viewModelScope.launch {
             settingsWrites.withLock {
-                withContext(dispatcher) { repository.update(change) }
+                withContext(dispatcher) { repository.update(change()) }
             }
         }
     }

@@ -161,7 +161,7 @@ bash gradlew :app:assembleDebug       # debug (отдельный ID с суфф
 bash gradlew :app:testDebugUnitTest :app:lintDebug :app:assembleDebugAndroidTest
 ```
 
-Release APK: `app/build/outputs/apk/release/app-release.apk`. В локальной сборке без минификации и удаления неиспользуемых ресурсов он вырос с **127 508 до 7 559 514 байт** (**+7 432 006 байт**, итоговый размер около 7,56 МБ). Сравнивались одинаковые подписанные `release`-варианты до и после подключения Kotlin/Compose и AndroidX, не APK из опубликованного релиза. Debug APK: `app/build/outputs/apk/debug/app-debug.apk`.
+Release APK: `app/build/outputs/apk/release/app-release.apk`. В локальной сборке без минификации и удаления неиспользуемых ресурсов он вырос с **127 508 до 7 558 790 байт** (**+7 431 282 байта**, итоговый размер около 7,56 МБ). Сравнивались одинаковые подписанные `release`-варианты до и после подключения Kotlin/Compose и AndroidX, не APK из опубликованного релиза. Debug APK: `app/build/outputs/apk/debug/app-debug.apk`.
 
 [Матрица проверки миграции](docs/superpowers/plans/2026-11-25-kotlin-compose-mvi-verification.md) отделяет результаты сборки, манифеста и эмулятора от сценариев, требующих реального Vivo/iQOO.
 
@@ -197,7 +197,7 @@ bash gradlew :app:assembleRelease
 
 The Compose Material 3 UI has three tabs: **Actions** (button setup, pickers, lock screen and menu editor), **Settings** (vibration, VPN client and assistant), and **Diagnostics** (handler, test action and log). It follows the system's light/dark theme and locale (Russian/English), with dynamic colors on Android 12+. The in-app test does not exercise the physical button.
 
-Requires Android **7.1+ (API 25)**. Build with JDK 17+, SDK 36 and `bash gradlew :app:assembleRelease`. Production code is under [`app/src/main/kotlin/com/vivotomirpay/stub/`](app/src/main/kotlin/com/vivotomirpay/stub/). The locally measured, unminified release APK grew from **127,508** to **7,559,514 bytes** (**+7,432,006 bytes**); see the [verification matrix](docs/superpowers/plans/2026-11-25-kotlin-compose-mvi-verification.md) for scope and device limitations.
+Requires Android **7.1+ (API 25)**. Build with JDK 17+, SDK 36 and `bash gradlew :app:assembleRelease`. Production code is under [`app/src/main/kotlin/com/vivotomirpay/stub/`](app/src/main/kotlin/com/vivotomirpay/stub/). The locally measured, unminified release APK grew from **127,508** to **7,558,790 bytes** (**+7,431,282 bytes**); see the [verification matrix](docs/superpowers/plans/2026-11-25-kotlin-compose-mvi-verification.md) for scope and device limitations.
 
 ---
 

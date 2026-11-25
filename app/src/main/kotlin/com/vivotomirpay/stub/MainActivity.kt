@@ -34,6 +34,7 @@ import com.vivotomirpay.stub.menu.MenuPicker
 import com.vivotomirpay.stub.picker.ActionPickerIntent
 import com.vivotomirpay.stub.picker.ActionPickerScreen
 import com.vivotomirpay.stub.picker.ActionPickerViewModel
+import com.vivotomirpay.stub.picker.PickerSelection
 import com.vivotomirpay.stub.picker.ShortcutPickerIntent
 import com.vivotomirpay.stub.picker.ShortcutPickerScreen
 import com.vivotomirpay.stub.picker.ShortcutPickerViewModel
@@ -173,7 +174,12 @@ private fun LauncherContent(session: LauncherSession, host: PlatformRequestHost)
                     entry, navigator, model.state, { it.selectionComplete }, model::claimSelectionCompletion, session::exit,
                 )
                 ActionPickerScreen(model, onOpenShortcuts = {
-                    if (navigator.isResumed(entry)) navigator.open(AppRoute.ShortcutPicker)
+                    val selection = model.state.value.selection
+                    if (navigator.isResumed(entry) &&
+                        selection != PickerSelection.Saving && selection != PickerSelection.Complete
+                    ) {
+                        navigator.open(AppRoute.ShortcutPicker)
+                    }
                 })
             }
             AppRoute.ShortcutPicker -> {

@@ -267,6 +267,53 @@ class ShortcutPickerViewModelTest : PickerViewModelTestFixture() {
     }
 
     @Test
+    fun changingQueryImmediatelyInvalidatesDisplayedShortcuts() = runTest {
+        val backup = shortcut.copy(id = "backup", label = "Backup")
+        catalog.entries = listOf(AppEntry(packageName, "Example"))
+        gateway.enqueue().complete(listOf(shortcut, backup))
+        val model = model()
+        runCurrent()
+        model.onIntent(ShortcutPickerIntent.ToggleApp(packageName))
+        runCurrent()
+        assertEquals(listOf(shortcut, backup), visibleShortcuts(model))
+
+        model.onIntent(ShortcutPickerIntent.Search("discarded"))
+        model.onIntent(ShortcutPickerIntent.Search("backup"))
+        model.onIntent(ShortcutPickerIntent.PickShortcut(packageName, shortcut.id, ""))
+        assertEquals(PickerSelection.Idle, model.state.value.selection)
+        assertTrue(model.state.value.filteringApps)
+        assertTrue(model.state.value.visibleApps.isEmpty())
+        assertTrue(repository.writes.isEmpty())
+
+        runCurrent()
+        assertFalse(model.state.value.filteringApps)
+        assertEquals(listOf(backup), visibleShortcuts(model))
+        model.onIntent(ShortcutPickerIntent.PickShortcut(packageName, backup.id, "backup"))
+        runCurrent()
+        assertEquals("shortcut:com.example.app:backup:Backup", repository.saved.value.targetId)
+    }
+
+    @Test
+    fun replacedResultsRejectAHiddenShortcutThatIsStillCached() = runTest {
+        val backup = shortcut.copy(id = "backup", label = "Backup")
+        catalog.entries = listOf(AppEntry(packageName, "Example"))
+        gateway.enqueue().complete(listOf(shortcut, backup))
+        val model = model()
+        runCurrent()
+        model.onIntent(ShortcutPickerIntent.ToggleApp(packageName))
+        runCurrent()
+        model.onIntent(ShortcutPickerIntent.Search("backup"))
+        runCurrent()
+        assertEquals(listOf(backup), visibleShortcuts(model))
+
+        model.onIntent(ShortcutPickerIntent.PickShortcut(packageName, shortcut.id, "backup"))
+        model.onIntent(ShortcutPickerIntent.PickShortcut(packageName, backup.id, "older query"))
+        runCurrent()
+        assertEquals(PickerSelection.Idle, model.state.value.selection)
+        assertTrue(repository.writes.isEmpty())
+    }
+
+    @Test
     fun retryFailureThenPickKeepsCanonicalId() = runTest {
         catalog.entries = listOf(AppEntry(packageName, "Example"))
         val first = gateway.enqueue()
@@ -285,7 +332,7 @@ class ShortcutPickerViewModelTest : PickerViewModelTestFixture() {
         runCurrent()
         retry.complete(listOf(shortcut))
         runCurrent()
-        model.onIntent(ShortcutPickerIntent.PickShortcut(packageName, shortcut.id))
+        model.onIntent(ShortcutPickerIntent.PickShortcut(packageName, shortcut.id, ""))
         runCurrent()
 
         assertEquals("shortcut:com.example.app:send%2B%25%3Afast:Pay+%2B%25%3A+now", repository.saved.value.targetId)
@@ -323,7 +370,7 @@ class ShortcutPickerViewModelTest : PickerViewModelTestFixture() {
         runCurrent()
         model.onIntent(ShortcutPickerIntent.ToggleApp(packageName))
         runCurrent()
-        model.onIntent(ShortcutPickerIntent.PickShortcut(packageName, shortcut.id))
+        model.onIntent(ShortcutPickerIntent.PickShortcut(packageName, shortcut.id, ""))
         runCurrent()
         assertTrue(model.state.value.selectionComplete)
         return model

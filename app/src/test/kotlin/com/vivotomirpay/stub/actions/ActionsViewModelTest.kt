@@ -128,15 +128,31 @@ class ActionsViewModelTest {
         runCurrent()
         model.onIntent(ActionsIntent.SelectLockscreenAction("special:camera"))
         runCurrent()
-        model.onIntent(ActionsIntent.SetLockscreenEnabled(false))
+        model.onIntent(ActionsIntent.ToggleLockscreen)
         runCurrent()
         assertFalse(model.state.value.settings!!.lockscreenEnabled)
         assertEquals("special:camera", model.state.value.settings!!.lockscreenActionId)
 
-        model.onIntent(ActionsIntent.SetLockscreenEnabled(true))
+        model.onIntent(ActionsIntent.ToggleLockscreen)
         runCurrent()
         assertTrue(model.state.value.settings!!.lockscreenEnabled)
         assertEquals("special:camera", model.state.value.settings!!.lockscreenActionId)
+    }
+
+    @Test
+    fun twoLockscreenTapsBeforePublicationInvertThePersistedValueTwice() = runTest {
+        val model = model(HandlerStatus.ThisApp)
+        runCurrent()
+        model.onIntent(ActionsIntent.SelectLockscreenAction("special:camera"))
+        runCurrent()
+        repository.holdPublication = true
+        repeat(2) { model.onIntent(ActionsIntent.ToggleLockscreen) }
+        runCurrent()
+
+        assertEquals(listOf(false, true), repository.lockscreenWrites)
+        assertTrue(repository.snapshot().lockscreenEnabled)
+        assertTrue(model.state.value.settings!!.lockscreenEnabled)
+        assertEquals("special:camera", repository.snapshot().lockscreenActionId)
     }
 
     @Test
@@ -308,14 +324,23 @@ class ActionsViewModelTest {
 
         override fun observe() = saved
 
-        override fun snapshot(): SettingsSnapshot = error("Use the observable initial snapshot")
+        var holdPublication = false
+        private var unpublished: SettingsSnapshot? = null
+        val lockscreenWrites = mutableListOf<Boolean>()
+
+        override fun snapshot(): SettingsSnapshot = unpublished ?: saved.value
 
         override fun update(change: SettingsChange) {
-            saved.value = when (change) {
-                is SettingsChange.LockscreenEnabled -> saved.value.copy(lockscreenEnabled = change.enabled)
-                is SettingsChange.LockscreenAction -> saved.value.copy(lockscreenActionId = change.id)
+            val current = snapshot()
+            val next = when (change) {
+                is SettingsChange.LockscreenEnabled -> {
+                    lockscreenWrites += change.enabled
+                    current.copy(lockscreenEnabled = change.enabled)
+                }
+                is SettingsChange.LockscreenAction -> current.copy(lockscreenActionId = change.id)
                 else -> error("Unexpected settings change: $change")
             }
+            if (holdPublication) unpublished = next else saved.value = next
         }
     }
 }

@@ -70,8 +70,8 @@ private fun HandlerSection(state: DiagnosticsUiState, onIntent: (DiagnosticsInte
         DiagnosticsHeading(R.string.card_handler_title)
         val summary = when (val status = handler.status) {
             HandlerStatus.Loading -> stringResource(R.string.actions_handler_loading)
-            HandlerStatus.ThisApp -> stringResource(R.string.status_default_ok)
-            is HandlerStatus.OtherApp -> stringResource(R.string.status_default_other, status.label)
+            HandlerStatus.ThisApp -> stringResource(R.string.actions_handler_current, stringResource(R.string.app_name))
+            is HandlerStatus.OtherApp -> stringResource(R.string.actions_handler_current, status.label)
             HandlerStatus.NoSpecificHandler -> stringResource(R.string.actions_handler_no_specific)
             HandlerStatus.Unavailable -> stringResource(R.string.actions_handler_unavailable)
         }
@@ -87,16 +87,25 @@ private fun HandlerSection(state: DiagnosticsUiState, onIntent: (DiagnosticsInte
             Text(stringResource(R.string.btn_test))
         }
         DiagnosticsHint(R.string.btn_test_hint)
-        if (handler.status == HandlerStatus.NoSpecificHandler || handler.status is HandlerStatus.OtherApp) {
-            val needsResolver = handler.status == HandlerStatus.NoSpecificHandler
+        if (handler.status == HandlerStatus.NoSpecificHandler) {
             FilledTonalButton(
                 onClick = { onIntent(DiagnosticsIntent.ConfigureHandler) },
-                enabled = !state.handlerRefreshing && !state.platformBusy,
+                enabled = state.canOpenHandlerSettings,
                 modifier = Modifier.heightIn(min = 48.dp),
             ) {
-                Text(stringResource(if (needsResolver) R.string.btn_resolve else R.string.btn_appinfo))
+                Text(stringResource(R.string.btn_resolve))
             }
-            DiagnosticsHint(if (needsResolver) R.string.btn_resolve_hint else R.string.btn_appinfo_hint)
+            DiagnosticsHint(R.string.btn_resolve_hint)
+        }
+        if (handler.status != HandlerStatus.Loading) {
+            OutlinedButton(
+                onClick = { onIntent(DiagnosticsIntent.OpenAppDetails) },
+                enabled = state.canOpenHandlerSettings,
+                modifier = Modifier.heightIn(min = 48.dp),
+            ) {
+                Text(stringResource(R.string.btn_appinfo))
+            }
+            DiagnosticsHint(R.string.btn_appinfo_hint)
         }
         if (state.platformLaunchFailed) {
             Text(

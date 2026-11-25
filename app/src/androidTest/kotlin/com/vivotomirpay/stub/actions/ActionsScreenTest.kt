@@ -2,6 +2,9 @@ package com.vivotomirpay.stub.actions
 
 import androidx.activity.ComponentActivity
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.assertHeightIsAtLeast
 import androidx.compose.ui.test.assertIsDisplayed
@@ -63,9 +66,10 @@ class ActionsScreenTest {
         compose.setContent {
             AppTheme {
                 LockscreenScreen(state.value, onIntent = { action ->
-                    if (action is ActionsIntent.SetLockscreenEnabled) {
+                    if (action == ActionsIntent.ToggleLockscreen) {
+                        val settings = state.value.settings!!
                         state.value = state.value.copy(
-                            settings = state.value.settings!!.copy(lockscreenEnabled = action.enabled),
+                            settings = settings.copy(lockscreenEnabled = !settings.lockscreenEnabled),
                         )
                     }
                 })
@@ -73,6 +77,8 @@ class ActionsScreenTest {
         }
 
         val resources = compose.activity.resources
+        compose.onNode(SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Switch))
+            .assertHasClickAction()
         val toggle = compose.onNodeWithText(resources.getString(R.string.switch_lock))
         val camera = compose.onNodeWithText(resources.getString(R.string.name_camera))
         toggle.assertIsOn().assertHeightIsAtLeast(48.dp)

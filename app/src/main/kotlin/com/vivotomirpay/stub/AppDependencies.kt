@@ -39,7 +39,7 @@ internal class AppDependencies(
     val routeModels = viewModelFactory {
         initializer { ActionsViewModel(repository, handlerProbe, labels) }
         initializer { SettingsViewModel(repository, device) }
-        initializer { DiagnosticsViewModel(repository, handlerProbe) }
+        initializer { DiagnosticsViewModel(repository, handlerProbe, appContext.packageName) }
         initializer { ActionPickerViewModel(repository, catalog, savedStateHandle = createSavedStateHandle()) }
         initializer { ShortcutPickerViewModel(repository, catalog, shortcuts ?: androidShortcuts, createSavedStateHandle()) }
         initializer { MenuEditorViewModel(repository, catalog) }

@@ -72,12 +72,53 @@ class ActionPickerViewModelTest : PickerViewModelTestFixture() {
         model.onIntent(ActionPickerIntent.Search("com.example"))
         runCurrent()
         assertEquals(listOf(entry), model.state.value.visibleApps)
-        model.onIntent(ActionPickerIntent.PickApp(entry.packageName))
+        model.onIntent(ActionPickerIntent.PickApp(entry.packageName, "com.example"))
         runCurrent()
 
         assertEquals("com.example.app", repository.saved.value.targetId)
         assertEquals(listOf(AppScope.Installed), catalog.scopes)
         assertEquals(listOf("com.example.app"), catalog.iconRequests)
+    }
+
+    @Test
+    fun changingQueryImmediatelyInvalidatesDisplayedApps() = runTest {
+        catalog.entries = listOf(AppEntry("com.alpha", "Alpha"), AppEntry("com.beta", "Beta"))
+        val model = model()
+        runCurrent()
+        model.onIntent(ActionPickerIntent.Search("alpha"))
+        runCurrent()
+        assertEquals(listOf("com.alpha"), model.state.value.visibleApps.map { it.packageName })
+
+        model.onIntent(ActionPickerIntent.Search("discarded"))
+        model.onIntent(ActionPickerIntent.Search("beta"))
+        // Hold the filter by not running its dispatcher; a callback from the old composition can still arrive.
+        model.onIntent(ActionPickerIntent.PickApp("com.alpha", "alpha"))
+        assertEquals(PickerSelection.Idle, model.state.value.selection)
+        assertTrue(model.state.value.filteringApps)
+        assertTrue(model.state.value.visibleApps.isEmpty())
+        assertTrue(repository.writes.isEmpty())
+
+        runCurrent()
+        assertFalse(model.state.value.filteringApps)
+        assertEquals(listOf("com.beta"), model.state.value.visibleApps.map { it.packageName })
+        model.onIntent(ActionPickerIntent.PickApp("com.beta", "beta"))
+        runCurrent()
+        assertEquals(listOf(SettingsChange.Target("com.beta")), repository.writes)
+    }
+
+    @Test
+    fun replacedResultsRejectAnAppThatIsStillInstalled() = runTest {
+        catalog.entries = listOf(AppEntry("com.alpha", "Alpha"), AppEntry("com.beta", "Beta"))
+        val model = model()
+        runCurrent()
+        model.onIntent(ActionPickerIntent.Search("beta"))
+        runCurrent()
+
+        model.onIntent(ActionPickerIntent.PickApp("com.alpha", "beta"))
+        model.onIntent(ActionPickerIntent.PickApp("com.beta", "older query"))
+        runCurrent()
+        assertEquals(PickerSelection.Idle, model.state.value.selection)
+        assertTrue(repository.writes.isEmpty())
     }
 
     @Test

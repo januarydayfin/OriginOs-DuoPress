@@ -55,6 +55,7 @@ data class ShortcutPickerState(
     val openingShizuku: Boolean = false,
     val openShizukuFailed: Boolean = false,
     val loadingApps: Boolean = false,
+    val filteringApps: Boolean = false,
     val appsError: String? = null,
     val visibleApps: List<ShortcutAppRow> = emptyList(),
     val selection: PickerSelection = PickerSelection.Idle,
@@ -71,7 +72,8 @@ sealed interface ShortcutPickerIntent {
     data class ToggleApp(val packageName: String) : ShortcutPickerIntent
     data class Search(val query: String) : ShortcutPickerIntent
     data class RetryShortcuts(val packageName: String) : ShortcutPickerIntent
-    data class PickShortcut(val packageName: String, val shortcutId: String) : ShortcutPickerIntent
+    /** Выбор строки из результатов, отрисованных для [query]. */
+    data class PickShortcut(val packageName: String, val shortcutId: String, val query: String) : ShortcutPickerIntent
 }
 
 /**
@@ -141,17 +143,20 @@ class ShortcutPickerViewModel(
             }
             ShortcutPickerIntent.RetryApps -> if (state.value.access == ShortcutAccess.Ready) loadApps()
             is ShortcutPickerIntent.Search -> {
+                if (state.value.query == intent.query) return
                 collapsedInSearch = emptySet()
                 savedStateHandle.remove<ArrayList<String>>(COLLAPSED_IN_SEARCH)
                 savedStateHandle[SHORTCUT_QUERY] = intent.query
-                mutableState.update { it.copy(query = intent.query) }
+                mutableState.update {
+                    it.copy(query = intent.query, visibleApps = emptyList(), filteringApps = true)
+                }
                 rebuildRows()
             }
             is ShortcutPickerIntent.ToggleApp -> toggleApp(intent.packageName)
             is ShortcutPickerIntent.RetryShortcuts -> if (loads[intent.packageName] is ShortcutLoad.Failed) {
                 loadShortcuts(intent.packageName)
             }
-            is ShortcutPickerIntent.PickShortcut -> pick(intent.packageName, intent.shortcutId)
+            is ShortcutPickerIntent.PickShortcut -> pick(intent)
         }
     }
 
@@ -257,7 +262,10 @@ class ShortcutPickerViewModel(
     private fun loadApps() {
         if (appsJob?.isActive == true) return
         val expectedGeneration = generation
-        mutableState.update { it.copy(loadingApps = true, appsError = null) }
+        searchJob?.cancel()
+        mutableState.update {
+            it.copy(loadingApps = true, appsError = null, visibleApps = emptyList(), filteringApps = true)
+        }
         appsJob = viewModelScope.launch {
             try {
                 val loaded = catalog.apps(AppScope.Launcher)
@@ -278,7 +286,9 @@ class ShortcutPickerViewModel(
             } catch (failure: Exception) {
                 ensureActive()
                 if (generation != expectedGeneration) return@launch
-                mutableState.update { it.copy(loadingApps = false, appsError = failure.describePickerFailure()) }
+                mutableState.update {
+                    it.copy(loadingApps = false, filteringApps = false, appsError = failure.describePickerFailure())
+                }
             }
         }
     }
@@ -340,7 +350,9 @@ class ShortcutPickerViewModel(
 
     private fun rebuildRows() {
         searchJob?.cancel()
-        val query = state.value.query.trim()
+        val current = state.value
+        if (current.loadingApps || current.appsError != null) return
+        val query = current.query.trim()
         val allApps = apps
         val allLoads = loads
         val expandedApps = expanded
@@ -363,19 +375,22 @@ class ShortcutPickerViewModel(
                     ShortcutAppRow(app, children)
                 }
             }
-            mutableState.update { it.copy(visibleApps = rows) }
+            ensureActive()
+            mutableState.update { it.copy(visibleApps = rows, filteringApps = false) }
         }
     }
 
-    private fun pick(packageName: String, id: String) {
+    private fun pick(intent: ShortcutPickerIntent.PickShortcut) {
         val current = state.value
-        if (current.access != ShortcutAccess.Ready ||
+        if (current.access != ShortcutAccess.Ready || current.loadingApps || current.filteringApps ||
+            current.query != intent.query ||
             current.selection == PickerSelection.Saving || current.selectionComplete
         ) return
-        val shortcut = (loads[packageName] as? ShortcutLoad.Loaded)?.entries
-            ?.firstOrNull { it.id == id && it.packageName == packageName }
+        val row = current.visibleApps.firstOrNull { it.app.packageName == intent.packageName }
+        val shortcut = (row?.children as? ShortcutLoad.Loaded)?.entries
+            ?.firstOrNull { it.id == intent.shortcutId && it.packageName == intent.packageName }
             ?: return
-        val action = ShortcutAction(packageName, shortcut.id, shortcut.label)
+        val action = ShortcutAction(shortcut.packageName, shortcut.id, shortcut.label)
         mutableState.update { it.copy(selection = PickerSelection.Saving) }
         viewModelScope.launch {
             val saved = try {

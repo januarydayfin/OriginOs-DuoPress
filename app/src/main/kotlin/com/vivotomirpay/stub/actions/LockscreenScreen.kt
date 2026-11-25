@@ -55,7 +55,7 @@ fun LockscreenScreen(
                 trailingContent = { Switch(checked = enabled, onCheckedChange = null) },
                 modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
                     .toggleable(value = enabled, role = Role.Switch) {
-                        onIntent(ActionsIntent.SetLockscreenEnabled(it))
+                        onIntent(ActionsIntent.ToggleLockscreen)
                     },
             )
             if (enabled) {

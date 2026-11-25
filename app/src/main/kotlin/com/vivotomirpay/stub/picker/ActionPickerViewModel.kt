@@ -39,7 +39,8 @@ sealed interface ActionPickerIntent {
     data class PickPreset(val preset: ActionPreset) : ActionPickerIntent
     data class ChangeManualPackage(val value: String) : ActionPickerIntent
     data class Search(val query: String) : ActionPickerIntent
-    data class PickApp(val packageName: String) : ActionPickerIntent
+    /** Выбор строки из результатов, отрисованных для [query]. */
+    data class PickApp(val packageName: String, val query: String) : ActionPickerIntent
     data object ReloadApps : ActionPickerIntent
     data object PickManualPackage : ActionPickerIntent
     data object Exit : ActionPickerIntent
@@ -54,6 +55,7 @@ data class ActionPickerState(
     val apps: List<AppEntry> = emptyList(),
     val visibleApps: List<AppEntry> = emptyList(),
     val loadingApps: Boolean = true,
+    val filteringApps: Boolean = false,
     val appsFailed: Boolean = false,
     val selection: PickerSelection = PickerSelection.Idle,
 ) {
@@ -97,8 +99,13 @@ class ActionPickerViewModel(
                 viewModelScope.coroutineContext.cancelChildren()
             }
             is ActionPickerIntent.PickPreset -> save(intent.preset.id)
-            is ActionPickerIntent.PickApp -> if (state.value.apps.any { it.packageName == intent.packageName }) {
-                save(intent.packageName)
+            is ActionPickerIntent.PickApp -> {
+                val current = state.value
+                if (current.query == intent.query && !current.loadingApps && !current.filteringApps &&
+                    current.visibleApps.any { it.packageName == intent.packageName }
+                ) {
+                    save(intent.packageName)
+                }
             }
             ActionPickerIntent.PickManualPackage -> {
                 state.value.manualPackage.trim().takeIf(String::isNotEmpty)?.let(::save)
@@ -108,8 +115,11 @@ class ActionPickerViewModel(
                 mutableState.update { it.copy(manualPackage = intent.value) }
             }
             is ActionPickerIntent.Search -> {
+                if (state.value.query == intent.query) return
                 savedStateHandle[APP_QUERY] = intent.query
-                mutableState.update { it.copy(query = intent.query) }
+                mutableState.update {
+                    it.copy(query = intent.query, visibleApps = emptyList(), filteringApps = true)
+                }
                 searchApps()
             }
             ActionPickerIntent.ReloadApps -> loadApps()
@@ -136,7 +146,10 @@ class ActionPickerViewModel(
 
     private fun loadApps() {
         appsJob?.cancel()
-        mutableState.update { it.copy(loadingApps = true, appsFailed = false) }
+        searchJob?.cancel()
+        mutableState.update {
+            it.copy(loadingApps = true, appsFailed = false, visibleApps = emptyList(), filteringApps = true)
+        }
         appsJob = viewModelScope.launch {
             try {
                 val apps = catalog.apps(AppScope.Installed)
@@ -147,17 +160,25 @@ class ActionPickerViewModel(
                 throw cancelled
             } catch (_: Exception) {
                 ensureActive()
-                mutableState.update { it.copy(appsFailed = true, loadingApps = false) }
+                mutableState.update { it.copy(appsFailed = true, loadingApps = false, filteringApps = false) }
             }
         }
     }
 
     private fun searchApps() {
         searchJob?.cancel()
-        val (apps, query) = state.value.let { it.apps to it.query.trim() }
+        val current = state.value
+        if (current.loadingApps || current.appsFailed) return
         searchJob = viewModelScope.launch {
-            val visible = withContext(dispatcher) { apps.filter { it.matchesPickerQuery(query) } }
-            mutableState.update { it.copy(visibleApps = visible) }
+            val visible = withContext(dispatcher) {
+                val query = current.query.trim()
+                current.apps.filter {
+                    ensureActive()
+                    it.matchesPickerQuery(query)
+                }
+            }
+            ensureActive()
+            mutableState.update { it.copy(visibleApps = visible, filteringApps = false) }
         }
     }
 

@@ -37,8 +37,6 @@
     </plurals>
 
     <!-- Handler status -->
-    <string name="status_default_ok">✓ Double power press: this app is set as the default handler</string>
-    <string name="status_default_other">⚠ Double power press: currently assigned to %1$s</string>
     <string name="status_default_none">ℹ No default handler yet — trigger the system dialog and pick “Always”</string>
     <string name="handler_status_registered">Registered NFC_BUS_SWINGSPLASH handlers (%1$d):</string>
 
@@ -137,6 +135,7 @@
     <string name="picker_manual_package_hint">Package name</string>
     <string name="picker_manual_confirm">Select package</string>
     <string name="picker_loading_apps">Loading apps…</string>
+    <string name="picker_filtering_apps">Searching…</string>
     <string name="picker_apps_failed">Could not load apps</string>
     <string name="picker_apps_failed_detail">Could not load apps: %1$s</string>
     <string name="picker_save_failed">Could not save the action. Try selecting it again.</string>
@@ -171,11 +170,11 @@
     <!-- Power handler -->
     <string name="card_handler_title">Power key handler</string>
     <string name="btn_test">Test the action</string>
-    <string name="btn_test_hint">Simulates the double power press without changing the system handler.</string>
-    <string name="btn_resolve">Trigger NFC_BUS_SWINGSPLASH (“Always”)</string>
-    <string name="btn_resolve_hint">Sends the same system Intent Vivo sends on a double press. Pick “Always” in the chooser to make this app the permanent handler.</string>
-    <string name="btn_appinfo">Current handler app info</string>
-    <string name="btn_appinfo_hint">Opens system settings for the currently assigned handler app. Reset the default there to bring the “Always” dialog back.</string>
+    <string name="btn_test_hint">Runs the action directly. It does not test the physical button or the system handler, and it does not change the assignment.</string>
+    <string name="btn_resolve">Ask Android to choose a handler</string>
+    <string name="btn_resolve_hint">Sends the Vivo system request. If Android shows a chooser, you can change the assignment there.</string>
+    <string name="btn_appinfo">App info</string>
+    <string name="btn_appinfo_hint">Opens Android app info for the handler or for this app. Whether you can clear the default there depends on your firmware.</string>
 
     <!-- Assistant -->
     <string name="card_assistant_title">Default assistant</string>

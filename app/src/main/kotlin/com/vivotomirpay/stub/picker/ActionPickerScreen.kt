@@ -151,10 +151,11 @@ private fun ActionPickerContent(
                     onRetry = { onIntent(ActionPickerIntent.ReloadApps) },
                 )
             }
+            state.filteringApps -> item("filtering") { PickerMessage(stringResource(R.string.picker_filtering_apps)) }
             state.visibleApps.isEmpty() -> item("empty") { PickerMessage(stringResource(R.string.picker_no_apps)) }
             else -> appSearchItems(
                 state.visibleApps,
-                onPicked = { onIntent(ActionPickerIntent.PickApp(it)) },
+                onPicked = { onIntent(ActionPickerIntent.PickApp(it, state.query)) },
                 loadIcon = loadIcon,
                 selectedPackage = currentPackage,
                 enabled = canPick,

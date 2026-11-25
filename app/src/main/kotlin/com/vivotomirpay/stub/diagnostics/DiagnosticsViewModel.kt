@@ -35,12 +35,15 @@ data class DiagnosticsUiState(
     internal val handlerRefreshing: Boolean = false,
 ) {
     internal val platformBusy: Boolean get() = platformRequest != null || inFlightRequest != null
+    internal val canOpenHandlerSettings: Boolean
+        get() = !platformBusy && !handlerRefreshing && handler.status != HandlerStatus.Loading
 }
 
 /** События диагностики. [TestAction] не запускает настройку или проверку текущего назначения. */
 sealed interface DiagnosticsIntent {
     data object Resume : DiagnosticsIntent
     data object ConfigureHandler : DiagnosticsIntent
+    data object OpenAppDetails : DiagnosticsIntent
     data object TestAction : DiagnosticsIntent
     data object ClearLog : DiagnosticsIntent
 }
@@ -50,11 +53,13 @@ sealed interface DiagnosticsIntent {
  *
  * @param repository источник журнала того же приложения, откуда его читает старый экран.
  * @param handlerProbe проверяет системный выбор и список зарегистрированных обработчиков.
+ * @param appPackageName фактический пакет текущего варианта для системных сведений о приложении.
  * @param dispatcher фоновый диспетчер для пробы и очистки журнала.
  */
 class DiagnosticsViewModel(
     private val repository: SettingsRepository,
     private val handlerProbe: HandlerProbe,
+    private val appPackageName: String,
     private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) : ViewModel() {
     private val mutableState = MutableStateFlow(DiagnosticsUiState())
@@ -79,6 +84,7 @@ class DiagnosticsViewModel(
         when (intent) {
             DiagnosticsIntent.Resume -> refreshHandler()
             DiagnosticsIntent.ConfigureHandler -> configureHandler()
+            DiagnosticsIntent.OpenAppDetails -> openAppDetails()
             DiagnosticsIntent.TestAction -> requestPlatformCommand(PlatformCommand.TestAction)
             DiagnosticsIntent.ClearLog -> viewModelScope.launch(dispatcher) {
                 repository.update(SettingsChange.ClearLog)
@@ -125,13 +131,15 @@ class DiagnosticsViewModel(
 
     private fun configureHandler() {
         val current = state.value
-        if (current.handlerRefreshing || current.platformBusy) return
-        val command = when (val status = current.handler.status) {
-            HandlerStatus.NoSpecificHandler -> PlatformCommand.ResolveHandler
-            is HandlerStatus.OtherApp -> PlatformCommand.OpenAppDetails(status.packageName)
-            else -> return
-        }
-        requestPlatformCommand(command)
+        if (!current.canOpenHandlerSettings || current.handler.status != HandlerStatus.NoSpecificHandler) return
+        requestPlatformCommand(PlatformCommand.ResolveHandler)
+    }
+
+    private fun openAppDetails() {
+        val current = state.value
+        if (!current.canOpenHandlerSettings) return
+        val other = current.handler.status as? HandlerStatus.OtherApp
+        requestPlatformCommand(PlatformCommand.OpenAppDetails(other?.packageName ?: appPackageName))
     }
 
     private fun requestPlatformCommand(command: PlatformCommand) {
