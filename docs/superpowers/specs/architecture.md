@@ -55,16 +55,16 @@ GitNexus upstream также отметил HIGH для `PrefsHelper.getTargetPa
 
 ### Вариант A
 
-Компоненты:
+Компоненты (Java-ссылки указывают на историческое состояние до миграции, `89f14c7`):
 
 | Компонент | Ответственность | Модуль | Статус |
 |---|---|---|---|
-| `MainActivity` / `AppNavHost` | Хост Compose и три корневых маршрута; Activity исполняет системные UI-запросы. | `:app` | [`MainActivity.java`](../../../app/src/main/java/com/vivotomirpay/stub/MainActivity.java) → Kotlin, `AppNavHost` новый. |
+| `MainActivity` / `AppNavHost` | Хост Compose и три корневых маршрута; Activity исполняет системные UI-запросы. | `:app` | [`MainActivity.java`](https://github.com/januarydayfin/VivoWalletToMirPay/blob/89f14c7e5bbd2efcc9d96da929f1d8393ddd136b/app/src/main/java/com/vivotomirpay/stub/MainActivity.java) → Kotlin, `AppNavHost` новый. |
 | Экранные ViewModel и контракты MVI | Преобразуют пользовательские намерения и данные в состояние действий, настроек, диагностики, редактора и пикеров. | `:app` | Новые; заменяют императивное состояние UI и callbacks. |
-| Репозиторий настроек | Читает/пишет совместимые значения и наблюдает реальные изменения. | `:app` | Новый контракт на базе [`PrefsHelper.java`](../../../app/src/main/java/com/vivotomirpay/stub/PrefsHelper.java); реализация затем Kotlin. |
-| Android-адаптеры | Package Manager, статус обработчика/ассистента/VPN, Shizuku, запуск действий. | `:app` | Новые границы для существующих [`ActionRunner.java`](../../../app/src/main/java/com/vivotomirpay/stub/ActionRunner.java), [`VpnController.java`](../../../app/src/main/java/com/vivotomirpay/stub/VpnController.java), [`ShizukuShortcuts.java`](../../../app/src/main/java/com/vivotomirpay/stub/ShizukuShortcuts.java) и платформенных запросов `MainActivity`. |
-| `SwipeEntryActivity` | Обработка системного Intent Vivo и выбор целевого действия по состоянию блокировки. | `:app` | [`SwipeEntryActivity.java`](../../../app/src/main/java/com/vivotomirpay/stub/SwipeEntryActivity.java) → Kotlin. |
-| `MenuActivity` | Хост панели действий над экраном блокировки; выполняет выбранное действие через общий исполнитель. | `:app` | [`MenuActivity.java`](../../../app/src/main/java/com/vivotomirpay/stub/MenuActivity.java) → Kotlin + Compose. |
+| Репозиторий настроек | Читает/пишет совместимые значения и наблюдает реальные изменения. | `:app` | Новый контракт на базе [`PrefsHelper.java`](https://github.com/januarydayfin/VivoWalletToMirPay/blob/89f14c7e5bbd2efcc9d96da929f1d8393ddd136b/app/src/main/java/com/vivotomirpay/stub/PrefsHelper.java); реализация затем Kotlin. |
+| Android-адаптеры | Package Manager, статус обработчика/ассистента/VPN, Shizuku, запуск действий. | `:app` | Новые границы для существующих [`ActionRunner.java`](https://github.com/januarydayfin/VivoWalletToMirPay/blob/89f14c7e5bbd2efcc9d96da929f1d8393ddd136b/app/src/main/java/com/vivotomirpay/stub/ActionRunner.java), [`VpnController.java`](https://github.com/januarydayfin/VivoWalletToMirPay/blob/89f14c7e5bbd2efcc9d96da929f1d8393ddd136b/app/src/main/java/com/vivotomirpay/stub/VpnController.java), [`ShizukuShortcuts.java`](https://github.com/januarydayfin/VivoWalletToMirPay/blob/89f14c7e5bbd2efcc9d96da929f1d8393ddd136b/app/src/main/java/com/vivotomirpay/stub/ShizukuShortcuts.java) и платформенных запросов `MainActivity`. |
+| `SwipeEntryActivity` | Обработка системного Intent Vivo и выбор целевого действия по состоянию блокировки. | `:app` | [`SwipeEntryActivity.java`](https://github.com/januarydayfin/VivoWalletToMirPay/blob/89f14c7e5bbd2efcc9d96da929f1d8393ddd136b/app/src/main/java/com/vivotomirpay/stub/SwipeEntryActivity.java) → Kotlin. |
+| `MenuActivity` | Хост панели действий над экраном блокировки; выполняет выбранное действие через общий исполнитель. | `:app` | [`MenuActivity.java`](https://github.com/januarydayfin/VivoWalletToMirPay/blob/89f14c7e5bbd2efcc9d96da929f1d8393ddd136b/app/src/main/java/com/vivotomirpay/stub/MenuActivity.java) → Kotlin + Compose. |
 
 Интерфейсы:
 
