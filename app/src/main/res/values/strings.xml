@@ -12,6 +12,16 @@
     <string name="nav_settings">Настройки</string>
     <string name="nav_diagnostics">Диагностика</string>
 
+    <!-- Экраны «Настройки» и «Диагностика» -->
+    <string name="settings_device_loading">Проверка состояния устройства…</string>
+    <string name="settings_platform_failed">Не удалось выполнить системное действие</string>
+    <string name="settings_vpn_happ" translatable="false">Happ</string>
+    <string name="settings_vpn_incy" translatable="false">incy</string>
+    <string name="settings_vpn_hint">Действие «VPN» переключает выбранный клиент в фоне, не открывая его интерфейс. Happ использует deeplink happ://toggle_without_ui и команду виджета, incy — broadcast llc.itdev.incy.TOGGLE. Root не нужен. «Авто» выбирает первый установленный клиент: Happ, затем incy. Если переключение не срабатывает, включите управление по deeplink в настройках Happ и проверьте журнал в разделе «Диагностика».</string>
+    <string name="app_label_with_package">%1$s (%2$s)</string>
+    <string name="diagnostics_log_loading">Загрузка журнала…</string>
+    <string name="diagnostics_platform_failed">Не удалось запустить действие или открыть системный экран</string>
+
     <!-- Экран «Действия» -->
     <string name="actions_double_press">Двойное нажатие</string>
     <string name="actions_same_as_unlocked">Как на разблокированном</string>
