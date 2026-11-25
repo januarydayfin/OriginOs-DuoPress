@@ -43,7 +43,8 @@ data class SettingsUiState(
 /** Действия экрана. [ChangeDuration] — изменение черновика; [CommitDuration] сохраняет его и запрашивает предпросмотр. */
 sealed interface SettingsIntent {
     data object Resume : SettingsIntent
-    data class SetVibrationEnabled(val enabled: Boolean) : SettingsIntent
+    /** Переключает сохранённое значение, а не отображаемый снимок. */
+    data object ToggleVibration : SettingsIntent
     data class ChangeDuration(val ms: Int) : SettingsIntent
     data object CommitDuration : SettingsIntent
     data class SelectPattern(val pattern: String) : SettingsIntent
@@ -87,21 +88,22 @@ class SettingsViewModel(
     fun onIntent(intent: SettingsIntent) {
         when (intent) {
             SettingsIntent.Resume -> refreshDevice()
-            is SettingsIntent.SetVibrationEnabled ->
-                save(SettingsChange.VibrationEnabled(intent.enabled), preview = true)
+            SettingsIntent.ToggleVibration -> save(preview = true) {
+                SettingsChange.VibrationEnabled(!repository.snapshot().vibrateEnabled)
+            }
             is SettingsIntent.ChangeDuration -> {
                 durationRevision++
                 mutableState.update { it.copy(durationDraftMs = intent.ms.coerceIn(vibrationDurationRange)) }
             }
             SettingsIntent.CommitDuration -> {
                 val ms = state.value.durationDraftMs ?: state.value.settings?.vibrateDurationMs ?: return
-                save(SettingsChange.VibrationDuration(ms), preview = true, committedRevision = ++durationRevision)
+                save(preview = true, committedRevision = ++durationRevision) { SettingsChange.VibrationDuration(ms) }
             }
             is SettingsIntent.SelectPattern -> if (intent.pattern in vibrationPatterns) {
-                save(SettingsChange.VibrationPattern(intent.pattern), preview = true)
+                save(preview = true) { SettingsChange.VibrationPattern(intent.pattern) }
             }
             is SettingsIntent.SelectVpnClient -> if (intent.client in vpnClients) {
-                save(SettingsChange.VpnClient(intent.client))
+                save { SettingsChange.VpnClient(intent.client) }
             }
             SettingsIntent.OpenAssistantSettings -> if (!state.value.platformBusy) {
                 val request = PlatformRequest.create(PlatformCommand.OpenAssistantSettings)
@@ -152,11 +154,11 @@ class SettingsViewModel(
         }
     }
 
-    private fun save(change: SettingsChange, preview: Boolean = false, committedRevision: Long? = null) {
+    private fun save(preview: Boolean = false, committedRevision: Long? = null, change: () -> SettingsChange) {
         viewModelScope.launch {
             settingsWrites.withLock {
                 val command = withContext(dispatcher) {
-                    repository.update(change)
+                    repository.update(change())
                     if (preview) {
                         val saved = repository.snapshot()
                         PlatformCommand.PreviewVibration(saved.vibrateDurationMs, saved.vibratePattern)

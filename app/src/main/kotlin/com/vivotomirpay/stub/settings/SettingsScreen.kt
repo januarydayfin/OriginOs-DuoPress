@@ -98,7 +98,7 @@ private fun VibrationSection(
             modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).toggleable(
                 value = settings.vibrateEnabled,
                 role = Role.Switch,
-                onValueChange = { onIntent(SettingsIntent.SetVibrationEnabled(it)) },
+                onValueChange = { onIntent(SettingsIntent.ToggleVibration) },
             ),
         )
         val duration = durationDraftMs ?: settings.vibrateDurationMs

@@ -101,7 +101,7 @@ class SettingsViewModelTest {
     @Test
     fun toggleAndPatternStillPreviewEvenWhenVibrationIsDisabled() = runTest {
         runCurrent()
-        model.onIntent(SettingsIntent.SetVibrationEnabled(false))
+        model.onIntent(SettingsIntent.ToggleVibration)
         model.onIntent(SettingsIntent.SelectPattern("double"))
         runCurrent()
 
@@ -114,6 +114,46 @@ class SettingsViewModelTest {
         val pattern = checkNotNull(model.state.value.platformRequest)
         assertNotEquals(toggle.id, pattern.id)
         assertEquals(PlatformCommand.PreviewVibration(40, "double"), pattern.command)
+    }
+
+    @Test
+    fun twoVibrationTapsBothToggleBeforeRepositoryPublishes() = runTest {
+        val published = MutableStateFlow(repository.snapshot())
+        val delayedRepository = object : SettingsRepository by repository {
+            override fun observe() = published
+        }
+        val delayedModel = SettingsViewModel(delayedRepository, DeviceStatusProbe { device }, dispatcher)
+        try {
+            runCurrent()
+            repeat(2) {
+                val displayed = checkNotNull(delayedModel.state.value.settings)
+                assertTrue("Both taps must see the same published value", displayed.vibrateEnabled)
+                delayedModel.onIntent(SettingsIntent.ToggleVibration)
+                runCurrent()
+            }
+
+            assertEquals(
+                listOf(SettingsChange.VibrationEnabled(false), SettingsChange.VibrationEnabled(true)),
+                repository.writes,
+            )
+            assertTrue(repository.snapshot().vibrateEnabled)
+            published.value = repository.snapshot()
+            runCurrent()
+            assertEquals(true, delayedModel.state.value.settings?.vibrateEnabled)
+
+            val first = checkNotNull(delayedModel.state.value.platformRequest)
+            assertEquals(PlatformCommand.PreviewVibration(40, "single"), first.command)
+            assertTrue(delayedModel.acknowledgePlatformRequest(first.id))
+            delayedModel.onPlatformResult(first.id, launched = true)
+            val second = checkNotNull(delayedModel.state.value.platformRequest)
+            assertEquals(first.command, second.command)
+            assertNotEquals(first.id, second.id)
+            assertTrue(delayedModel.acknowledgePlatformRequest(second.id))
+            delayedModel.onPlatformResult(second.id, launched = true)
+            assertNull(delayedModel.state.value.platformRequest)
+        } finally {
+            delayedModel.viewModelScope.cancel()
+        }
     }
 
     @Test
