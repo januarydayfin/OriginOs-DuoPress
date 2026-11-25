@@ -13,6 +13,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -40,6 +41,7 @@ sealed interface ActionPickerIntent {
     data class PickApp(val packageName: String) : ActionPickerIntent
     data object ReloadApps : ActionPickerIntent
     data object PickManualPackage : ActionPickerIntent
+    data object Exit : ActionPickerIntent
 }
 
 enum class PickerSelection { Idle, Saving, Complete, Failed }
@@ -65,6 +67,8 @@ class ActionPickerViewModel(
 ) : ViewModel() {
     private val mutableState = MutableStateFlow(ActionPickerState())
     val state = mutableState.asStateFlow()
+    private var closed = false
+    private var selectionCompletionClaimed = false
     private var appsJob: Job? = null
     private var searchJob: Job? = null
 
@@ -79,7 +83,12 @@ class ActionPickerViewModel(
 
     @MainThread
     fun onIntent(intent: ActionPickerIntent) {
+        if (closed) return
         when (intent) {
+            ActionPickerIntent.Exit -> {
+                closed = true
+                viewModelScope.coroutineContext.cancelChildren()
+            }
             is ActionPickerIntent.PickPreset -> save(intent.preset.id)
             is ActionPickerIntent.PickApp -> if (state.value.apps.any { it.packageName == intent.packageName }) {
                 save(intent.packageName)
@@ -96,8 +105,23 @@ class ActionPickerViewModel(
         }
     }
 
+    /**
+     * Однократно подтверждает завершение выбора. Хост на Main сначала проверяет, что именно
+     * эта запись навигации текущая и находится в `RESUMED`, затем сразу выполняет переход.
+     */
+    @MainThread
+    fun claimSelectionCompletion(isActiveEntry: Boolean): Boolean {
+        if (!isActiveEntry || closed || selectionCompletionClaimed || !state.value.selectionComplete) return false
+        selectionCompletionClaimed = true
+        return true
+    }
+
     /** Загружает только значок запрошенной строки, не меняя результаты поиска. */
     suspend fun icon(packageName: String) = catalog.icon(packageName)
+
+    override fun onCleared() {
+        closed = true
+    }
 
     private fun loadApps() {
         appsJob?.cancel()

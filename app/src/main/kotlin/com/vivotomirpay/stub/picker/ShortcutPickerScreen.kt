@@ -40,11 +40,9 @@ import com.vivotomirpay.stub.ui.theme.AppTheme
 @Composable
 fun ShortcutPickerScreen(
     viewModel: ShortcutPickerViewModel,
-    onSelectionComplete: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    PickerCompletion(state.selectionComplete, onSelectionComplete)
     ShortcutPickerContent(state, viewModel::onIntent, viewModel::appIcon, viewModel::shortcutIcon, modifier)
 }
 

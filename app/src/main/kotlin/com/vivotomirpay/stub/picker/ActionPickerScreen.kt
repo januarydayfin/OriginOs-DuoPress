@@ -25,9 +25,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.ImageBitmap
@@ -52,11 +50,9 @@ import com.vivotomirpay.stub.ui.theme.AppTheme
 fun ActionPickerScreen(
     viewModel: ActionPickerViewModel,
     onOpenShortcuts: () -> Unit,
-    onSelectionComplete: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    PickerCompletion(state.selectionComplete, onSelectionComplete)
     ActionPickerContent(state, viewModel::onIntent, viewModel::icon, onOpenShortcuts, modifier)
 }
 
@@ -236,14 +232,6 @@ internal fun PickerMessage(text: String, modifier: Modifier = Modifier, onRetry:
                 Text(stringResource(R.string.btn_retry))
             }
         }
-    }
-}
-
-@Composable
-internal fun PickerCompletion(complete: Boolean, onComplete: () -> Unit) {
-    val callback by rememberUpdatedState(onComplete)
-    LaunchedEffect(complete) {
-        if (complete) callback()
     }
 }
 

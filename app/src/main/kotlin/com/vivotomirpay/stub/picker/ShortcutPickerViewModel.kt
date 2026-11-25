@@ -89,6 +89,7 @@ class ShortcutPickerViewModel(
     val state = mutableState.asStateFlow()
     private var acknowledgedRequest: PlatformRequest? = null
     private var closed = false
+    private var selectionCompletionClaimed = false
     private var generation = 0L
     private var nextLoadId = 0L
     private val activeLoads = mutableMapOf<String, Long>()
@@ -171,9 +172,11 @@ class ShortcutPickerViewModel(
                 if (result == ShortcutPlatformResult.Opened) return
                 acknowledgedRequest = null
                 savedStateHandle.remove<Boolean>(PERMISSION_IN_FLIGHT)
-                when (result) {
-                    ShortcutPlatformResult.Granted -> refreshAccess()
-                    else -> mutableState.update { it.copy(access = ShortcutAccess.PermissionDenied, permissionRequestId = null) }
+                if (result == ShortcutPlatformResult.Denied) {
+                    mutableState.update { it.copy(access = ShortcutAccess.PermissionDenied, permissionRequestId = null) }
+                } else {
+                    // При сбое отправки сервис мог стать недоступен; причину определяет новая проверка.
+                    refreshAccess()
                 }
             }
             PlatformCommand.OpenShizuku -> {
@@ -185,6 +188,17 @@ class ShortcutPickerViewModel(
             }
             else -> return
         }
+    }
+
+    /**
+     * Однократно подтверждает завершение выбора. Хост на Main сначала проверяет, что именно
+     * эта запись навигации текущая и находится в `RESUMED`, затем сразу выполняет переход.
+     */
+    @MainThread
+    fun claimSelectionCompletion(isActiveEntry: Boolean): Boolean {
+        if (!isActiveEntry || closed || selectionCompletionClaimed || !state.value.selectionComplete) return false
+        selectionCompletionClaimed = true
+        return true
     }
 
     suspend fun appIcon(packageName: String) = catalog.icon(packageName)

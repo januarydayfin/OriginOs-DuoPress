@@ -14,12 +14,14 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -76,6 +78,37 @@ class ActionPickerViewModelTest : PickerViewModelTestFixture() {
         assertEquals("com.example.app", repository.saved.value.targetId)
         assertEquals(listOf(AppScope.Installed), catalog.scopes)
         assertEquals(listOf("com.example.app"), catalog.iconRequests)
+    }
+
+    @Test
+    fun selectionCompletionCanOnlyBeClaimedOnce() = runTest {
+        val model = completedSelection()
+        assertTrue(model.claimSelectionCompletion(isActiveEntry = true))
+        assertFalse(model.claimSelectionCompletion(isActiveEntry = true))
+    }
+
+    @Test
+    fun inactiveEntryKeepsSelectionCompletionPending() = runTest {
+        val model = completedSelection()
+        assertFalse(model.claimSelectionCompletion(isActiveEntry = false))
+        assertTrue(model.state.value.selectionComplete)
+        assertTrue(model.claimSelectionCompletion(isActiveEntry = true))
+    }
+
+    @Test
+    fun exitedEntryCannotClaimSelectionCompletion() = runTest {
+        val model = completedSelection()
+        model.onIntent(ActionPickerIntent.Exit)
+        assertFalse(model.claimSelectionCompletion(isActiveEntry = true))
+    }
+
+    private fun TestScope.completedSelection(): ActionPickerViewModel {
+        val model = model()
+        assertFalse(model.claimSelectionCompletion(isActiveEntry = true))
+        model.onIntent(ActionPickerIntent.PickPreset(ActionPreset.Camera))
+        runCurrent()
+        assertTrue(model.state.value.selectionComplete)
+        return model
     }
 
     private fun model() = track(ActionPickerViewModel(repository, catalog, dispatcher))

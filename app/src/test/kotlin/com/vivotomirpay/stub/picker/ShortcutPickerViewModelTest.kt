@@ -12,6 +12,7 @@ import com.vivotomirpay.stub.platform.ShortcutKind
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -48,6 +49,58 @@ class ShortcutPickerViewModelTest : PickerViewModelTestFixture() {
 
         model.onPlatformResult(id, ShortcutPlatformResult.Denied)
         assertEquals(ShortcutAccess.PermissionDenied, model.state.value.access)
+        assertNull(model.state.value.permissionRequestId)
+    }
+
+    @Test
+    fun failedPermissionDispatchRechecksAccessAndOffersRecovery() = runTest {
+        gateway.currentStatus = Status.PERMISSION_DENIED
+        val model = model()
+        runCurrent()
+        model.onIntent(ShortcutPickerIntent.RequestPermission)
+        val id = checkNotNull(model.state.value.platformRequest).id
+        assertTrue(model.acknowledgePlatformRequest(id))
+
+        gateway.currentStatus = Status.UNAVAILABLE
+        gateway.launchable = true
+        model.onPlatformResult(id, ShortcutPlatformResult.Failed)
+        assertEquals(ShortcutAccess.Checking, model.state.value.access)
+        assertNull(model.state.value.permissionRequestId)
+        model.onIntent(ShortcutPickerIntent.RequestPermission)
+        assertNull(model.state.value.platformRequest)
+        runCurrent()
+        assertEquals(ShortcutAccess.Unavailable, model.state.value.access)
+        assertTrue(model.state.value.canOpenShizuku)
+        assertNull(model.state.value.platformRequest)
+
+        model.onIntent(ShortcutPickerIntent.OpenShizuku)
+        val open = checkNotNull(model.state.value.platformRequest)
+        assertEquals(PlatformCommand.OpenShizuku, open.command)
+        assertTrue(model.acknowledgePlatformRequest(open.id))
+        model.onPlatformResult(open.id, ShortcutPlatformResult.Opened)
+        gateway.currentStatus = Status.PERMISSION_DENIED
+        model.onIntent(ShortcutPickerIntent.RetryAccess)
+        runCurrent()
+        assertEquals(ShortcutAccess.PermissionAvailable, model.state.value.access)
+        assertNull("Recovery must not request permission automatically", model.state.value.platformRequest)
+    }
+
+    @Test
+    fun explicitPermissionDenialIsNotTreatedAsDispatchFailure() = runTest {
+        gateway.currentStatus = Status.PERMISSION_DENIED
+        val model = model()
+        runCurrent()
+        model.onIntent(ShortcutPickerIntent.RequestPermission)
+        val id = checkNotNull(model.state.value.platformRequest).id
+        assertTrue(model.acknowledgePlatformRequest(id))
+
+        gateway.currentStatus = Status.UNAVAILABLE
+        gateway.launchable = true
+        model.onPlatformResult(id, ShortcutPlatformResult.Denied)
+        runCurrent()
+        assertEquals(ShortcutAccess.PermissionDenied, model.state.value.access)
+        assertFalse(model.state.value.canOpenShizuku)
+        assertNull(model.state.value.platformRequest)
         assertNull(model.state.value.permissionRequestId)
     }
 
@@ -167,6 +220,42 @@ class ShortcutPickerViewModelTest : PickerViewModelTestFixture() {
         assertEquals(listOf(packageName, packageName), gateway.loads)
     }
 
+    @Test
+    fun selectionCompletionCanOnlyBeClaimedOnce() = runTest {
+        val model = completedSelection()
+        assertTrue(model.claimSelectionCompletion(isActiveEntry = true))
+        assertFalse(model.claimSelectionCompletion(isActiveEntry = true))
+    }
+
+    @Test
+    fun inactiveEntryKeepsSelectionCompletionPending() = runTest {
+        val model = completedSelection()
+        assertFalse(model.claimSelectionCompletion(isActiveEntry = false))
+        assertTrue(model.state.value.selectionComplete)
+        assertTrue(model.claimSelectionCompletion(isActiveEntry = true))
+    }
+
+    @Test
+    fun exitedEntryCannotClaimSelectionCompletion() = runTest {
+        val model = completedSelection()
+        model.onIntent(ShortcutPickerIntent.Exit)
+        assertFalse(model.claimSelectionCompletion(isActiveEntry = true))
+    }
+
+    private fun TestScope.completedSelection(): ShortcutPickerViewModel {
+        catalog.entries = listOf(AppEntry(packageName, "Example"))
+        gateway.enqueue().complete(listOf(shortcut))
+        val model = model()
+        assertFalse(model.claimSelectionCompletion(isActiveEntry = true))
+        runCurrent()
+        model.onIntent(ShortcutPickerIntent.ToggleApp(packageName))
+        runCurrent()
+        model.onIntent(ShortcutPickerIntent.PickShortcut(packageName, shortcut.id))
+        runCurrent()
+        assertTrue(model.state.value.selectionComplete)
+        return model
+    }
+
     private fun visibleShortcuts(model: ShortcutPickerViewModel) =
         (model.state.value.visibleApps.singleOrNull()?.children as? ShortcutLoad.Loaded)?.entries.orEmpty()
 
@@ -175,6 +264,7 @@ class ShortcutPickerViewModelTest : PickerViewModelTestFixture() {
 
     private class ControlledGateway : ShortcutGateway {
         var currentStatus = Status.OK
+        var launchable = false
         private val results = ArrayDeque<CompletableDeferred<List<ShortcutEntry>>>()
         val loads = mutableListOf<String>()
 
@@ -182,6 +272,7 @@ class ShortcutPickerViewModelTest : PickerViewModelTestFixture() {
 
         override fun status() = currentStatus
         override fun canRequestPermission() = true
+        override suspend fun canOpenShizuku() = launchable
         override suspend fun shortcuts(packageName: String): List<ShortcutEntry> {
             loads.add(packageName)
             return results.removeFirst().await()
