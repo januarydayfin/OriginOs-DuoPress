@@ -27,6 +27,7 @@ import kotlinx.coroutines.withContext
  *
  * @property settings сохранённые настройки; `null`, пока не получен первый снимок.
  * @property platformRequest запрос, ещё не подтверждённый исполняющим хостом.
+ * @property handlerRefreshing пока проверка не завершена, прежний статус виден, но команды заблокированы.
  */
 data class ActionsState(
     val settings: SettingsSnapshot? = null,
@@ -36,8 +37,9 @@ data class ActionsState(
     val platformRequest: PlatformRequest? = null,
     val platformLaunchFailed: Boolean = false,
     internal val inFlightRequestId: Long? = null,
+    internal val handlerRefreshing: Boolean = false,
 ) {
-    internal val platformBusy: Boolean get() = platformRequest != null || inFlightRequestId != null
+    internal val platformBusy: Boolean get() = handlerRefreshing || platformRequest != null || inFlightRequestId != null
 }
 
 sealed interface ActionsIntent {
@@ -103,14 +105,14 @@ class ActionsViewModel(
     fun acknowledgePlatformRequest(id: Long): Boolean {
         while (true) {
             val current = state.value
-            if (current.platformRequest?.id != id) return false
+            if (current.handlerRefreshing || current.platformRequest?.id != id) return false
             val acknowledged = current.copy(platformRequest = null, inFlightRequestId = id)
             if (mutableState.compareAndSet(current, acknowledged)) return true
         }
     }
 
     /**
-     * Завершает исполнение подтверждённого запроса. После успешного возврата перечитывает статус.
+     * Завершает исполнение подтверждённого запроса на Main. После успешного возврата перечитывает статус.
      *
      * @param id идентификатор запроса, который исполнил хост.
      * @param launched удалось ли открыть системный экран, независимо от выбора пользователя в нём.
@@ -119,22 +121,26 @@ class ActionsViewModel(
         while (true) {
             val current = state.value
             if (current.inFlightRequestId != id) return
-            val completed = current.copy(inFlightRequestId = null, platformLaunchFailed = !launched)
+            val completed = current.copy(
+                inFlightRequestId = null,
+                platformLaunchFailed = !launched,
+                handlerRefreshing = launched || current.handlerRefreshing,
+            )
             if (mutableState.compareAndSet(current, completed)) break
         }
-        if (launched) refreshHandler()
+        if (launched) startHandlerProbe()
     }
 
     private fun refreshHandler() {
+        mutableState.update { it.copy(handlerRefreshing = true, platformRequest = null) }
+        startHandlerProbe()
+    }
+
+    private fun startHandlerProbe() {
         handlerRefresh?.cancel()
         handlerRefresh = viewModelScope.launch {
             val handler = withContext(dispatcher) { handlerProbe.inspect() }
-            mutableState.update { current ->
-                current.copy(
-                    handler = handler,
-                    platformRequest = current.platformRequest?.takeIf { it.command.matches(handler.status) },
-                )
-            }
+            mutableState.update { it.copy(handler = handler, handlerRefreshing = false) }
         }
     }
 

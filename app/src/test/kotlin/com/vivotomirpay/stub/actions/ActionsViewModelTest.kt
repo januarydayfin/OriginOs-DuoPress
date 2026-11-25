@@ -203,6 +203,83 @@ class ActionsViewModelTest {
         assertEquals(HandlerStatus.ThisApp, model.state.value.handler.status)
     }
 
+    @Test
+    fun resumeInvalidatesQueuedResolutionBeforeProbeCompletes() = runTest {
+        val other = HandlerStatus.OtherApp("org.example.wallet", "Wallet")
+        var status: HandlerStatus = HandlerStatus.NoSpecificHandler
+        val model = model(HandlerProbe { HandlerSnapshot(status, emptyList()) })
+        runCurrent()
+        model.onIntent(ActionsIntent.ResolveHandler)
+        val oldRequest = model.state.value.platformRequest!!
+
+        status = other
+        model.onIntent(ActionsIntent.RefreshHandler)
+        // The worker has not been allowed to publish a fresh result.
+        assertFalse("Resume must revoke the queued request immediately", model.acknowledgePlatformRequest(oldRequest.id))
+        model.onIntent(ActionsIntent.ResolveHandler)
+        assertNull(model.state.value.platformRequest)
+
+        runCurrent()
+        assertEquals(other, model.state.value.handler.status)
+        assertFalse(model.acknowledgePlatformRequest(oldRequest.id))
+        model.onIntent(ActionsIntent.ResolveHandler)
+        assertNull(model.state.value.platformRequest)
+        model.onIntent(ActionsIntent.OpenHandlerDetails(other.packageName))
+        val freshRequest = model.state.value.platformRequest!!
+        assertEquals(PlatformCommand.OpenAppDetails(other.packageName), freshRequest.command)
+        assertTrue(model.acknowledgePlatformRequest(freshRequest.id))
+    }
+
+    @Test
+    fun successfulSystemReturnBlocksRepeatTapUntilProbeCompletes() = runTest {
+        val other = HandlerStatus.OtherApp("org.example.wallet", "Wallet")
+        var status: HandlerStatus = HandlerStatus.NoSpecificHandler
+        val model = model(HandlerProbe { HandlerSnapshot(status, emptyList()) })
+        runCurrent()
+        model.onIntent(ActionsIntent.ResolveHandler)
+        val launched = model.state.value.platformRequest!!
+        assertTrue(model.acknowledgePlatformRequest(launched.id))
+
+        status = other
+        model.onPlatformResult(launched.id, launched = true)
+        model.onIntent(ActionsIntent.ResolveHandler)
+        assertNull("Returning from the chooser must not re-enable resolution before the probe", model.state.value.platformRequest)
+
+        // onResume may arrive in the same turn as the result.
+        model.onIntent(ActionsIntent.RefreshHandler)
+        model.onIntent(ActionsIntent.ResolveHandler)
+        assertNull(model.state.value.platformRequest)
+
+        runCurrent()
+        assertEquals(other, model.state.value.handler.status)
+        assertFalse(model.acknowledgePlatformRequest(launched.id))
+        model.onIntent(ActionsIntent.ResolveHandler)
+        assertNull(model.state.value.platformRequest)
+    }
+
+    @Test
+    fun resumeAlsoInvalidatesQueuedAppDetailsEvenIfTheHandlerStaysTheSame() = runTest {
+        val other = HandlerStatus.OtherApp("org.example.wallet", "Wallet")
+        val model = model(other)
+        runCurrent()
+        val openDetails = ActionsIntent.OpenHandlerDetails(other.packageName)
+        model.onIntent(openDetails)
+        val oldRequest = model.state.value.platformRequest!!
+
+        model.onIntent(ActionsIntent.RefreshHandler)
+        assertFalse("Resume must also revoke queued app details", model.acknowledgePlatformRequest(oldRequest.id))
+        model.onIntent(openDetails)
+        assertNull(model.state.value.platformRequest)
+
+        runCurrent()
+        assertFalse(model.acknowledgePlatformRequest(oldRequest.id))
+        model.onIntent(openDetails)
+        val newRequest = model.state.value.platformRequest!!
+        assertNotEquals(oldRequest.id, newRequest.id)
+        assertEquals(PlatformCommand.OpenAppDetails(other.packageName), newRequest.command)
+        assertTrue(model.acknowledgePlatformRequest(newRequest.id))
+    }
+
     private fun TestScope.model(status: HandlerStatus) =
         model(HandlerProbe { HandlerSnapshot(status, emptyList()) })
 
