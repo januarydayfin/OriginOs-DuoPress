@@ -101,6 +101,8 @@ class ShortcutPickerViewModel(
     private var appsLoaded = false
     private var apps = emptyList<AppEntry>()
     private var loads = emptyMap<String, ShortcutLoad>()
+    // Reload searchable inputs after restore independently of which rows were expanded.
+    private var searchablePackages = savedStateHandle.get<ArrayList<String>>(SEARCHABLE_PACKAGES).orEmpty().toSet()
     private var expanded = savedStateHandle.get<ArrayList<String>>(EXPANDED_APPS).orEmpty().toSet()
     private var collapsedInSearch = savedStateHandle.get<ArrayList<String>>(COLLAPSED_IN_SEARCH).orEmpty().toSet()
 
@@ -265,7 +267,10 @@ class ShortcutPickerViewModel(
                 apps = loaded
                 mutableState.update { it.copy(loadingApps = false) }
                 for (app in loaded) {
-                    if (app.packageName in expanded && app.packageName !in loads) loadShortcuts(app.packageName)
+                    val packageName = app.packageName
+                    if ((packageName in expanded || packageName in searchablePackages) && packageName !in loads) {
+                        loadShortcuts(packageName)
+                    }
                 }
                 rebuildRows()
             } catch (cancelled: CancellationException) {
@@ -301,10 +306,6 @@ class ShortcutPickerViewModel(
         val expectedGeneration = generation
         val id = ++nextLoadId
         activeLoads[packageName] = id
-        if (packageName !in expanded) {
-            expanded = expanded + packageName
-            savedStateHandle[EXPANDED_APPS] = ArrayList(expanded)
-        }
         loads = loads + (packageName to ShortcutLoad.Loading)
         rebuildRows()
         viewModelScope.launch {
@@ -319,6 +320,14 @@ class ShortcutPickerViewModel(
             if (generation != expectedGeneration || activeLoads[packageName] != id) return@launch
             activeLoads.remove(packageName)
             loads = loads + (packageName to result)
+            if (result is ShortcutLoad.Loaded) {
+                val updated = if (result.entries.isEmpty()) searchablePackages - packageName
+                else searchablePackages + packageName
+                if (updated != searchablePackages) {
+                    searchablePackages = updated
+                    savedStateHandle[SEARCHABLE_PACKAGES] = ArrayList(updated)
+                }
+            }
             rebuildRows()
             if (result is ShortcutLoad.Failed &&
                 withContext(dispatcher) { gateway.status() } != Status.OK &&
@@ -395,6 +404,7 @@ class ShortcutPickerViewModel(
     private companion object {
         const val PERMISSION_IN_FLIGHT = "shortcut_permission_in_flight"
         const val SHORTCUT_QUERY = "shortcut_picker_query"
+        const val SEARCHABLE_PACKAGES = "shortcut_picker_searchable_packages"
         const val EXPANDED_APPS = "shortcut_picker_expanded_apps"
         const val COLLAPSED_IN_SEARCH = "shortcut_picker_collapsed_in_search"
     }

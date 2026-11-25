@@ -8,8 +8,6 @@ import android.os.Looper
 import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.annotation.MainThread
-import androidx.lifecycle.DefaultLifecycleObserver
-import androidx.lifecycle.LifecycleOwner
 import com.vivotomirpay.stub.MenuActivity
 import com.vivotomirpay.stub.SwipeEntryActivity
 import com.vivotomirpay.stub.Vibe
@@ -24,7 +22,7 @@ internal enum class PlatformOutcome { Launched, Failed, Granted, Denied }
 
 internal interface ShortcutControl {
     suspend fun managerIntent(): Intent?
-    suspend fun requestPermission(requestCode: Int): ShortcutPermissionStart
+    suspend fun requestPermission(requestCode: Int, sendGate: PermissionSendGate): ShortcutPermissionStart
 
     /** Результат асинхронного запроса доставляется на Main. */
     @MainThread
@@ -33,7 +31,8 @@ internal interface ShortcutControl {
 
 internal class AndroidShortcutControl(private val gateway: () -> AndroidShortcutGateway) : ShortcutControl {
     override suspend fun managerIntent(): Intent? = gateway().openShizukuIntent()
-    override suspend fun requestPermission(requestCode: Int) = gateway().requestPermission(requestCode)
+    override suspend fun requestPermission(requestCode: Int, sendGate: PermissionSendGate) =
+        gateway().requestPermission(requestCode, sendGate)
 
     override fun listen(onResult: (Int, Boolean) -> Unit): AutoCloseable {
         val listener = Shizuku.OnRequestPermissionResultListener { code, result ->
@@ -52,16 +51,7 @@ internal class AndroidShortcutControl(private val gateway: () -> AndroidShortcut
 internal class PlatformRequestHost(
     private val activity: ComponentActivity,
     private val pending: PendingPlatformRequests,
-) : AutoCloseable {
-    private val activityObserver = object : DefaultLifecycleObserver {
-        override fun onPause(owner: LifecycleOwner) = pending.onActivityPaused()
-        override fun onResume(owner: LifecycleOwner) = pending.onActivityResumed()
-    }
-
-    init {
-        activity.lifecycle.addObserver(activityObserver)
-    }
-
+) {
     suspend fun prepareManagerIntent(): Intent? = platformOrNull { pending.shortcutControl.managerIntent() }
 
     fun execute(
@@ -72,17 +62,17 @@ internal class PlatformRequestHost(
     ) {
         val delivery = RequestDelivery(entryId, request.id, onResult)
         when (val command = request.command) {
-            PlatformCommand.ResolveHandler -> startForReturn(delivery) {
+            // A successful dispatch need not pause the Activity (e.g. multi-resume).
+            // Each active screen re-probes separately on its own resume.
+            PlatformCommand.ResolveHandler -> delivery.finish(
                 start(
                     Intent(SwipeEntryActivity.ACTION_VIVO_SWIPE)
                         .addCategory(Intent.CATEGORY_DEFAULT)
                         .putExtra("lb_from", "2"),
-                )
-            }
-            is PlatformCommand.OpenAppDetails -> startForReturn(delivery) {
-                start(appDetails(command.packageName))
-            }
-            PlatformCommand.OpenAssistantSettings -> startForReturn(delivery) { openAssistantSettings() }
+                ).asLaunchOutcome(),
+            )
+            is PlatformCommand.OpenAppDetails -> delivery.finish(start(appDetails(command.packageName)).asLaunchOutcome())
+            PlatformCommand.OpenAssistantSettings -> delivery.finish(openAssistantSettings().asLaunchOutcome())
             PlatformCommand.TestAction -> delivery.finish(
                 start(
                     Intent(activity, SwipeEntryActivity::class.java)
@@ -104,14 +94,6 @@ internal class PlatformRequestHost(
         }
     }
 
-    private inline fun startForReturn(delivery: RequestDelivery, launch: () -> Boolean) {
-        if (!pending.awaitReturn(delivery)) {
-            delivery.finish(PlatformOutcome.Failed)
-        } else if (!launch()) {
-            pending.failLaunch(delivery)
-        }
-    }
-
     private fun openAssistantSettings(): Boolean {
         val actions = listOf(
             "android.settings.VOICE_INPUT_SETTINGS",
@@ -123,10 +105,6 @@ internal class PlatformRequestHost(
     }
 
     private fun start(intent: Intent): Boolean = platformOrNull { activity.startActivity(intent) } != null
-
-    override fun close() {
-        activity.lifecycle.removeObserver(activityObserver)
-    }
 }
 
 internal class RequestDelivery(
@@ -146,12 +124,13 @@ internal class PendingPlatformRequests(
     private val scope: CoroutineScope,
     val shortcutControl: ShortcutControl,
 ) : AutoCloseable {
-    private class Permission(val delivery: RequestDelivery, var job: Job? = null)
-    private class Return(val delivery: RequestDelivery, var paused: Boolean = false)
+    private class Permission(val delivery: RequestDelivery) {
+        val sendGate = PermissionSendGate()
+        var job: Job? = null
+    }
 
     private val permissions = mutableMapOf<Int, Permission>()
     private var subscription: AutoCloseable? = null
-    private var externalReturn: Return? = null
 
     fun requestPermission(delivery: RequestDelivery) {
         // Saturate rather than wrap: a delayed callback must never match a reused code.
@@ -171,7 +150,7 @@ internal class PendingPlatformRequests(
             }
         }
         permission.job = scope.launch {
-            when (platformOrNull { shortcutControl.requestPermission(code) }) {
+            when (platformOrNull { shortcutControl.requestPermission(code, permission.sendGate) }) {
                 ShortcutPermissionStart.WaitingForResult -> Unit
                 ShortcutPermissionStart.AlreadyGranted -> finishPermission(code, PlatformOutcome.Granted)
                 ShortcutPermissionStart.Rejected, null -> finishPermission(code, PlatformOutcome.Failed)
@@ -185,31 +164,10 @@ internal class PendingPlatformRequests(
 
     private fun finishPermission(code: Int, outcome: PlatformOutcome) {
         val permission = permissions.remove(code) ?: return
+        permission.sendGate.revoke()
         releaseListenerIfIdle()
         permission.job?.cancel()
         permission.delivery.finish(outcome)
-    }
-
-    fun awaitReturn(delivery: RequestDelivery): Boolean {
-        if (externalReturn != null) return false
-        externalReturn = Return(delivery)
-        return true
-    }
-
-    fun failLaunch(delivery: RequestDelivery) {
-        if (externalReturn?.delivery !== delivery) return
-        externalReturn = null
-        delivery.finish(PlatformOutcome.Failed)
-    }
-
-    fun onActivityPaused() {
-        externalReturn?.paused = true
-    }
-
-    fun onActivityResumed() {
-        val returned = externalReturn?.takeIf { it.paused } ?: return
-        externalReturn = null
-        returned.delivery.finish(PlatformOutcome.Launched)
     }
 
     fun revoke(entryId: String) {
@@ -217,12 +175,12 @@ internal class PendingPlatformRequests(
         while (iterator.hasNext()) {
             val permission = iterator.next()
             if (permission.delivery.entryId == entryId) {
+                permission.sendGate.revoke()
                 iterator.remove()
                 permission.job?.cancel()
             }
         }
         releaseListenerIfIdle()
-        if (externalReturn?.delivery?.entryId == entryId) externalReturn = null
     }
 
     private fun releaseListenerIfIdle() {
@@ -233,9 +191,9 @@ internal class PendingPlatformRequests(
     }
 
     override fun close() {
+        permissions.values.forEach { it.sendGate.revoke() }
         val dispatches = permissions.values.mapNotNull(Permission::job)
         permissions.clear()
-        externalReturn = null
         releaseListenerIfIdle()
         dispatches.forEach { it.cancel() }
     }

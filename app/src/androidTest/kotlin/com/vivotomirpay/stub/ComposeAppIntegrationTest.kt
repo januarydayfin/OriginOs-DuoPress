@@ -7,6 +7,7 @@ import android.content.ActivityNotFoundException
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.os.Bundle
 import android.provider.Settings
 import android.view.KeyEvent
@@ -24,17 +25,25 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToNode
 import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import com.vivotomirpay.stub.platform.AndroidShortcutGateway
 import com.vivotomirpay.stub.platform.HandlerProbe
 import com.vivotomirpay.stub.platform.HandlerSnapshot
 import com.vivotomirpay.stub.platform.HandlerStatus
+import com.vivotomirpay.stub.platform.PermissionSendGate
 import com.vivotomirpay.stub.platform.ShortcutControl
 import com.vivotomirpay.stub.platform.ShortcutEntry
 import com.vivotomirpay.stub.platform.ShortcutGateway
 import com.vivotomirpay.stub.platform.ShortcutPermissionStart
 import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit.SECONDS
+import java.util.concurrent.atomic.AtomicInteger
+import kotlinx.coroutines.asCoroutineDispatcher
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -183,22 +192,121 @@ class ComposeAppIntegrationTest {
     }
 
     @Test
-    fun diagnosticsTestUsesOwnSwipeEntryAndDetailsUseOtherHandlerPackage() {
-        setHandler(HandlerStatus.OtherApp("example.other.handler", "Other handler"))
+    fun terminalBackDuringPermissionPrecheckPreventsRealDispatchPathFromSending() {
+        val enteredPrecheck = CountDownLatch(1)
+        val releasePrecheck = CountDownLatch(1)
+        val rationaleChecks = AtomicInteger()
+        val sentCodes = CopyOnWriteArrayList<Int>()
+        val worker = Executors.newSingleThreadExecutor()
+        worker.asCoroutineDispatcher().use { dispatcher ->
+            val gateway = AndroidShortcutGateway(
+                context, dispatcher,
+                checkStatus = { ShizukuShortcuts.Status.PERMISSION_DENIED },
+                showRationale = {
+                    if (rationaleChecks.incrementAndGet() == 2) {
+                        enteredPrecheck.countDown()
+                        check(releasePrecheck.await(10, SECONDS))
+                    }
+                    false
+                },
+                sendPermissionRequest = { sentCodes += it },
+            )
+            val shizuku = FakeShizuku(permissionGateway = gateway)
+            MainActivity.dependenciesOverride = { AppDependencies(it, shortcuts = gateway, shortcutControl = shizuku) }
+            try {
+                launch()
+                requestShortcutPermission()
+                assertTrue("Production permission precheck was not entered", enteredPrecheck.await(5, SECONDS))
+                systemBack()
+                compose.onNode(heading(R.string.picker_title_main)).assertIsDisplayed()
+                assertEquals(0, shizuku.listenerCount)
+                releasePrecheck.countDown()
+                worker.submit {}.get(5, SECONDS)
+                assertEquals("The revoked precheck must not invoke the SDK sender", emptyList<Int>(), sentCodes.toList())
+
+                clickBack()
+                requestShortcutPermission()
+                compose.waitUntil(5_000) { sentCodes.size == 1 }
+                assertTrue(sentCodes.single() > 0)
+            } finally {
+                releasePrecheck.countDown()
+            }
+        }
+    }
+
+    @Test
+    fun successfulDispatchWithoutPauseDoesNotBlockTheNextTab() {
+        useHandlerProbe(TestHandlerProbe(HandlerStatus.OtherApp("example.other.handler", "Other handler")))
+        launch()
+        awaitText(R.string.actions_open_handler_details)
+        val pauses = AtomicInteger()
+        scenario.onActivity { activity ->
+            activity.lifecycle.addObserver(LifecycleEventObserver { _, event ->
+                if (event == Lifecycle.Event.ON_PAUSE) pauses.incrementAndGet()
+            })
+        }
+
+        val intents = captureHandlerDetailsWithoutActivityResult {
+            compose.onNode(text(R.string.actions_open_handler_details)).performClick()
+            tab(R.string.nav_diagnostics).performClick()
+            awaitOtherHandler()
+            compose.onNode(text(R.string.btn_appinfo)).performScrollTo().performClick()
+            compose.waitForIdle()
+        }
+        assertEquals(Lifecycle.State.RESUMED, scenario.state)
+        assertEquals(0, pauses.get())
+        assertEquals(
+            listOf("package:example.other.handler", "package:example.other.handler"),
+            intents.map(Intent::getDataString),
+        )
+        compose.onNode(text(R.string.diagnostics_platform_failed)).assertDoesNotExist()
+    }
+
+    @Test
+    fun completedDispatchReprobesOnceWhenTheActiveRouteActuallyResumes() {
+        val probe = TestHandlerProbe(HandlerStatus.OtherApp("example.other.handler", "Other handler"))
+        useHandlerProbe(probe)
         launch()
         tab(R.string.nav_diagnostics).performClick()
-        val expectedLabel = hasText(context.getString(R.string.status_default_other, "Other handler"))
-        compose.waitUntil(5_000) { compose.onAllNodes(expectedLabel).fetchSemanticsNodes().isNotEmpty() }
+        awaitOtherHandler()
+        val beforeDispatch = probe.calls.get()
+        val intents = captureHandlerDetailsWithoutActivityResult {
+            compose.onNode(text(R.string.btn_appinfo)).performScrollTo().performClick()
+            compose.waitUntil(5_000) { probe.calls.get() > beforeDispatch }
+        }
+        assertEquals(1, intents.size)
+        assertEquals(beforeDispatch + 1, probe.calls.get())
+        assertEquals(Lifecycle.State.RESUMED, scenario.state)
+
+        scenario.moveToState(Lifecycle.State.STARTED)
+        probe.status = HandlerStatus.NoSpecificHandler
+        assertEquals(beforeDispatch + 1, probe.calls.get())
+        scenario.moveToState(Lifecycle.State.RESUMED)
+        awaitText(R.string.actions_handler_no_specific)
+        assertEquals(beforeDispatch + 2, probe.calls.get())
+        compose.onNode(text(R.string.diagnostics_platform_failed)).assertDoesNotExist()
+    }
+
+    @Test
+    fun diagnosticsTestUsesOwnSwipeEntryAndDetailsUseOtherHandlerPackage() {
+        val probe = TestHandlerProbe(HandlerStatus.OtherApp("example.other.handler", "Other handler"))
+        useHandlerProbe(probe)
+        launch()
+        tab(R.string.nav_diagnostics).performClick()
+        val expectedLabel = awaitOtherHandler()
+        val beforeTestAction = probe.calls.get()
         val intents = captureIntents { intent ->
             when (intent.action) {
-                "vivo.intent.action.NFC_BUS_SWINGSPLASH" -> Instrumentation.ActivityResult(Activity.RESULT_CANCELED, null)
                 Settings.ACTION_APPLICATION_DETAILS_SETTINGS -> throw ActivityNotFoundException("Test surface")
                 else -> null
             }
         } doWhile {
-            compose.onNode(text(R.string.btn_test)).performScrollTo().performClick()
-            compose.onNode(expectedLabel).assertIsDisplayed()
-            compose.onNode(text(R.string.status_default_ok)).assertDoesNotExist()
+            blockWithoutActivityResult(IntentFilter("vivo.intent.action.NFC_BUS_SWINGSPLASH")) {
+                compose.onNode(text(R.string.btn_test)).performScrollTo().performClick()
+                compose.onNode(expectedLabel).assertIsDisplayed()
+                compose.onNode(text(R.string.status_default_ok)).assertDoesNotExist()
+                assertEquals(beforeTestAction, probe.calls.get())
+            }
             compose.onNode(text(R.string.btn_appinfo)).performScrollTo().performClick()
             compose.waitUntil(5_000) {
                 compose.onAllNodes(text(R.string.diagnostics_platform_failed)).fetchSemanticsNodes().isNotEmpty()
@@ -269,9 +377,29 @@ class ComposeAppIntegrationTest {
         assertActions()
     }
 
-    private fun setHandler(status: HandlerStatus) {
-        MainActivity.dependenciesOverride = {
-            AppDependencies(it, handlerProbe = HandlerProbe { HandlerSnapshot(status, emptyList()) })
+    private fun useHandlerProbe(probe: HandlerProbe) {
+        MainActivity.dependenciesOverride = { AppDependencies(it, handlerProbe = probe) }
+    }
+
+    private fun awaitOtherHandler(): SemanticsMatcher {
+        val label = hasText(context.getString(R.string.status_default_other, "Other handler"))
+        compose.waitUntil(5_000) { compose.onAllNodes(label).fetchSemanticsNodes().isNotEmpty() }
+        return label
+    }
+
+    private fun captureHandlerDetailsWithoutActivityResult(block: () -> Unit): List<Intent> =
+        captureIntents { null } doWhile {
+            val filter = IntentFilter(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply { addDataScheme("package") }
+            blockWithoutActivityResult(filter, block)
+        }
+
+    private fun blockWithoutActivityResult(filter: IntentFilter, block: () -> Unit) {
+        // Returning a canned ActivityResult can cause a synthetic pause/resume even without a launch.
+        val blocker = instrumentation.addMonitor(filter, null, true)
+        try {
+            block()
+        } finally {
+            instrumentation.removeMonitor(blocker)
         }
     }
 
@@ -358,7 +486,16 @@ class ComposeAppIntegrationTest {
         text(label) and SemanticsMatcher.keyIsDefined(SemanticsProperties.Heading)
 }
 
-private class FakeShizuku : ShortcutGateway, ShortcutControl {
+private class TestHandlerProbe(@Volatile var status: HandlerStatus) : HandlerProbe {
+    val calls = AtomicInteger()
+
+    override fun inspect(): HandlerSnapshot {
+        calls.incrementAndGet()
+        return HandlerSnapshot(status, emptyList())
+    }
+}
+
+private class FakeShizuku(private val permissionGateway: AndroidShortcutGateway? = null) : ShortcutGateway, ShortcutControl {
     private val listeners = mutableSetOf<(Int, Boolean) -> Unit>()
     private val requestCodes = mutableListOf<Int>()
     val requests: List<Int> get() = requestCodes.toList()
@@ -371,8 +508,9 @@ private class FakeShizuku : ShortcutGateway, ShortcutControl {
     override suspend fun shortcuts(packageName: String) = emptyList<ShortcutEntry>()
     override suspend fun managerIntent(): Intent? = null
 
-    override suspend fun requestPermission(requestCode: Int): ShortcutPermissionStart {
+    override suspend fun requestPermission(requestCode: Int, sendGate: PermissionSendGate): ShortcutPermissionStart {
         requestCodes += requestCode
+        if (permissionGateway != null) return permissionGateway.requestPermission(requestCode, sendGate)
         if (rejectDispatch) {
             probeStatus = ShizukuShortcuts.Status.UNAVAILABLE
             return ShortcutPermissionStart.Rejected

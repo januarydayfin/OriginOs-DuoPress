@@ -62,20 +62,14 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
-    private lateinit var requestHost: PlatformRequestHost
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        requestHost = PlatformRequestHost(this, session.requests)
+        val requestHost = PlatformRequestHost(this, session.requests)
         setContent {
             AppTheme { LauncherContent(session, requestHost) }
         }
-    }
-
-    override fun onDestroy() {
-        requestHost.close()
-        super.onDestroy()
     }
 
     internal companion object {

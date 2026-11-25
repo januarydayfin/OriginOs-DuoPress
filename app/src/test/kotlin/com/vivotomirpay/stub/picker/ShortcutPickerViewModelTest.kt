@@ -50,6 +50,59 @@ class ShortcutPickerViewModelTest : PickerViewModelTestFixture() {
     }
 
     @Test
+    fun copiedStateRebuildsLabelOnlyHitFromPreviouslyLoadedCollapsedApp() = runTest {
+        restoreShortcutOnlyHit("Pay +%", collapseHit = false)
+    }
+
+    @Test
+    fun copiedStateKeepsIdOnlyHitCollapsedWithoutExpandingItsApp() = runTest {
+        restoreShortcutOnlyHit("send+%:", collapseHit = true)
+    }
+
+    private fun TestScope.restoreShortcutOnlyHit(query: String, collapseHit: Boolean) {
+        val app = AppEntry(packageName, "Example")
+        val unvisited = AppEntry("com.other", "Other")
+        catalog.entries = listOf(app, unvisited)
+        gateway.enqueue().complete(listOf(shortcut))
+        gateway.enqueue().complete(listOf(shortcut))
+        val handle = SavedStateHandle()
+        val original = model(handle)
+        runCurrent()
+        original.onIntent(ShortcutPickerIntent.ToggleApp(packageName))
+        runCurrent()
+        assertEquals(ShortcutLoad.Loaded(listOf(shortcut)), original.state.value.visibleApps.first().children)
+        original.onIntent(ShortcutPickerIntent.ToggleApp(packageName))
+        runCurrent()
+        assertNull(original.state.value.visibleApps.first().children)
+        original.onIntent(ShortcutPickerIntent.Search(query))
+        runCurrent()
+        assertEquals(listOf(ShortcutAppRow(app, ShortcutLoad.Loaded(listOf(shortcut)))), original.state.value.visibleApps)
+        if (collapseHit) {
+            original.onIntent(ShortcutPickerIntent.ToggleApp(packageName))
+            runCurrent()
+        }
+        val copied = SavedStateHandle(handle.keys().associateWith { key ->
+            when (val value = handle.get<Any>(key)) {
+                is ArrayList<*> -> ArrayList(value)
+                else -> value
+            }
+        })
+        original.viewModelScope.cancel()
+
+        val restored = model(copied)
+        runCurrent()
+        val expectedChildren = if (collapseHit) null else ShortcutLoad.Loaded(listOf(shortcut))
+        assertEquals(query, restored.state.value.query)
+        assertEquals(listOf(ShortcutAppRow(app, expectedChildren)), restored.state.value.visibleApps)
+        assertEquals(listOf(packageName, packageName), gateway.loads)
+        assertNull(restored.state.value.platformRequest)
+        assertNull(restored.state.value.permissionRequestId)
+        restored.onIntent(ShortcutPickerIntent.Search(""))
+        runCurrent()
+        assertEquals(listOf(ShortcutAppRow(app, null), ShortcutAppRow(unvisited, null)), restored.state.value.visibleApps)
+    }
+
+    @Test
     fun duplicatePermissionClickRequestsOnce() = runTest {
         gateway.currentStatus = Status.PERMISSION_DENIED
         val model = model()

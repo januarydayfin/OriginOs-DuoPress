@@ -8,6 +8,7 @@ import androidx.compose.ui.graphics.ImageBitmap
 import com.vivotomirpay.stub.ShizukuShortcuts
 import com.vivotomirpay.stub.ShizukuShortcuts.Status
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ensureActive
@@ -43,23 +44,43 @@ interface ShortcutGateway {
 /** Отправлен ли запрос, либо хосту уже можно завершить сценарий без ожидания callback. */
 enum class ShortcutPermissionStart { WaitingForResult, AlreadyGranted, Rejected }
 
+/** Back revokes an uncommitted send without waiting for Binder on the main thread. */
+internal class PermissionSendGate {
+    private val available = AtomicBoolean(true)
+
+    // A successful CAS commits exactly one send. A later revoke can only discard its result.
+    fun tryCommitSend(): Boolean = available.compareAndSet(true, false)
+
+    fun revoke() {
+        available.set(false)
+    }
+}
+
 /**
  * Адаптер прежнего Shizuku backend без расширения прав. Экземпляр живёт в пределах маршрута
  * выбора ярлыка: метаданные `ShortcutInfo` нужны для ленивой загрузки значков его строк.
  */
-class AndroidShortcutGateway(
+class AndroidShortcutGateway internal constructor(
     context: Context,
-    private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
+    private val dispatcher: CoroutineDispatcher,
+    private val checkStatus: () -> Status,
+    private val showRationale: () -> Boolean,
+    private val sendPermissionRequest: (Int) -> Unit,
 ) : ShortcutGateway {
+    constructor(context: Context, dispatcher: CoroutineDispatcher = Dispatchers.IO) : this(
+        context, dispatcher, ShizukuShortcuts::checkStatus,
+        Shizuku::shouldShowRequestPermissionRationale, Shizuku::requestPermission,
+    )
+
     private val appContext = context.applicationContext
     private val infoByPackage = ConcurrentHashMap<String, Map<String, ShortcutInfo>>()
 
     @WorkerThread
-    override fun status(): Status = ShizukuShortcuts.checkStatus()
+    override fun status(): Status = checkStatus()
 
     @WorkerThread
     override fun canRequestPermission(): Boolean =
-        optionalPickerValue { !Shizuku.shouldShowRequestPermissionRationale() } == true
+        optionalPickerValue { !showRationale() } == true
 
     override suspend fun canOpenShizuku(): Boolean = openShizukuIntent() != null
 
@@ -69,18 +90,23 @@ class AndroidShortcutGateway(
     }
 
     /** После подтверждения команды хостом; listener уже должен быть привязан к этому requestCode. */
-    suspend fun requestPermission(requestCode: Int): ShortcutPermissionStart = withContext(dispatcher) {
-        when (status()) {
-            Status.OK -> ShortcutPermissionStart.AlreadyGranted
-            Status.PERMISSION_DENIED ->
-                if (canRequestPermission() && optionalPickerValue { Shizuku.requestPermission(requestCode) } != null) {
-                    ShortcutPermissionStart.WaitingForResult
-                } else {
-                    ShortcutPermissionStart.Rejected
+    internal suspend fun requestPermission(requestCode: Int, sendGate: PermissionSendGate): ShortcutPermissionStart =
+        withContext(dispatcher) {
+            when (status()) {
+                Status.OK -> ShortcutPermissionStart.AlreadyGranted
+                Status.PERMISSION_DENIED -> {
+                    if (!canRequestPermission()) return@withContext ShortcutPermissionStart.Rejected
+                    // Both Binder prechecks are synchronous and may have outlived terminal Back.
+                    ensureActive()
+                    if (sendGate.tryCommitSend() && optionalPickerValue { sendPermissionRequest(requestCode) } != null) {
+                        ShortcutPermissionStart.WaitingForResult
+                    } else {
+                        ShortcutPermissionStart.Rejected
+                    }
                 }
-            else -> ShortcutPermissionStart.Rejected
+                else -> ShortcutPermissionStart.Rejected
+            }
         }
-    }
 
     override suspend fun shortcuts(packageName: String): List<ShortcutEntry> = withContext(dispatcher) {
         val unique = LinkedHashMap<String, ShortcutInfo>()
