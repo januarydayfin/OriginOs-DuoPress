@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.material3.Button
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -21,8 +22,10 @@ import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.lifecycle.Lifecycle
+import androidx.navigation.NavBackStackEntry
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.vivotomirpay.stub.ui.theme.AppTheme
+import org.junit.Assert.assertSame
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -37,12 +40,16 @@ class AppNavHostTest {
     private val settingsTab = hasText("Settings") or hasText("Настройки")
     private val diagnosticsTab = hasText("Diagnostics") or hasText("Диагностика")
     private val backButton = hasContentDescription("Back") or hasContentDescription("Назад")
+    private var actionsEntry: NavBackStackEntry? = null
 
     @Before
     fun showHost() {
         compose.setContent {
             AppTheme {
-                AppNavHost(render = { route, navigator -> TestScreen(route, navigator) })
+                AppNavHost(render = { route, entry, navigator ->
+                    if (route == AppRoute.Actions) SideEffect { actionsEntry = entry }
+                    TestScreen(route, entry, navigator)
+                })
             }
         }
     }
@@ -92,10 +99,12 @@ class AppNavHostTest {
 
     @Test
     fun selectionReturnsToActions() {
+        val original = compose.runOnIdle { requireNotNull(actionsEntry) }
         compose.onNodeWithText("Pick action").performClick()
         assertScreen("Action picker screen")
         compose.onNodeWithText("Use action").performClick()
         assertScreen("Actions screen")
+        compose.runOnIdle { assertSame(original, actionsEntry) }
 
         compose.onNodeWithText("Pick action").performClick()
         assertScreen("Action picker screen")
@@ -103,6 +112,7 @@ class AppNavHostTest {
         assertScreen("Shortcut picker screen")
         compose.onNodeWithText("Use shortcut").performClick()
         assertScreen("Actions screen")
+        compose.runOnIdle { assertSame(original, actionsEntry) }
         assertSelectedTab(actionsTab)
         compose.onAllNodes(backButton).assertCountEquals(0)
         systemBack()
@@ -126,7 +136,7 @@ class AppNavHostTest {
 }
 
 @Composable
-private fun TestScreen(route: AppRoute, navigator: AppNavigator) {
+private fun TestScreen(route: AppRoute, entry: NavBackStackEntry, navigator: AppNavigator) {
     Column {
         when (route) {
             AppRoute.Actions -> {
@@ -145,12 +155,12 @@ private fun TestScreen(route: AppRoute, navigator: AppNavigator) {
             AppRoute.Lockscreen -> Text("Lockscreen screen")
             AppRoute.ActionPicker -> {
                 Text("Action picker screen")
-                Button(onClick = navigator::completeActionSelection) { Text("Use action") }
+                Button(onClick = { navigator.completeActionSelection(entry, { true }, {}) }) { Text("Use action") }
                 Button(onClick = { navigator.open(AppRoute.ShortcutPicker) }) { Text("Pick shortcut") }
             }
             AppRoute.ShortcutPicker -> {
                 Text("Shortcut picker screen")
-                Button(onClick = navigator::completeActionSelection) { Text("Use shortcut") }
+                Button(onClick = { navigator.completeActionSelection(entry, { true }, {}) }) { Text("Use shortcut") }
             }
         }
     }

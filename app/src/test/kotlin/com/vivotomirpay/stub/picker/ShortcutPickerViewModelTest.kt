@@ -30,6 +30,26 @@ class ShortcutPickerViewModelTest : PickerViewModelTestFixture() {
     private val shortcut = ShortcutEntry(packageName, "send+%:fast", "Pay +%: now", ShortcutKind.Dynamic, 4)
 
     @Test
+    fun recreatedPickerRestoresSearchAndReloadsExpandedApp() = runTest {
+        val app = AppEntry(packageName, "Example")
+        catalog.entries = listOf(app, AppEntry("com.other", "Other"))
+        val handle = SavedStateHandle()
+        val original = model(handle)
+        runCurrent()
+        original.onIntent(ShortcutPickerIntent.Search("example"))
+        original.onIntent(ShortcutPickerIntent.ToggleApp(packageName))
+        runCurrent()
+        original.viewModelScope.cancel()
+
+        val recreated = model(handle)
+        runCurrent()
+        assertEquals("example", recreated.state.value.query)
+        assertEquals(listOf(app), recreated.state.value.visibleApps.map { it.app })
+        assertTrue(recreated.state.value.visibleApps.single().children != null)
+        assertNull(recreated.state.value.platformRequest)
+    }
+
+    @Test
     fun duplicatePermissionClickRequestsOnce() = runTest {
         gateway.currentStatus = Status.PERMISSION_DENIED
         val model = model()

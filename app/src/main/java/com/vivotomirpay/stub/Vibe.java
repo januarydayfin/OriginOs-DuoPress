@@ -15,8 +15,15 @@ public final class Vibe {
     private Vibe() {
     }
 
-    @SuppressWarnings("deprecation")
     public static void trigger(Context context) {
+        try {
+            trigger(context, PrefsHelper.getVibrateDurationMs(context), PrefsHelper.getVibratePattern(context));
+        } catch (Exception ignored) {
+        }
+    }
+
+    @SuppressWarnings("deprecation")
+    public static boolean trigger(Context context, int duration, String pattern) {
         try {
             Vibrator v;
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -27,11 +34,8 @@ public final class Vibe {
                 v = (Vibrator) context.getSystemService(Context.VIBRATOR_SERVICE);
             }
             if (v == null || !v.hasVibrator()) {
-                return;
+                return true;
             }
-
-            int duration = PrefsHelper.getVibrateDurationMs(context);
-            String pattern = PrefsHelper.getVibratePattern(context);
 
             long[] waveform;
             if ("double".equals(pattern)) {
@@ -49,7 +53,9 @@ public final class Vibe {
             } else {
                 v.vibrate(waveform, -1);
             }
+            return true;
         } catch (Exception ignored) {
+            return false;
         }
     }
 }

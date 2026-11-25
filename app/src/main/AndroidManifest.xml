@@ -136,14 +136,6 @@
             android:configChanges="keyboardHidden|orientation|screenLayout|screenSize|smallestScreenSize|uiMode|density"
             android:theme="@style/MenuTheme" />
 
-        <!-- Экран настройки меню действий -->
-        <activity
-            android:name=".MenuEditorActivity"
-            android:exported="false"
-            android:label="@string/editor_menu_title"
-            android:screenOrientation="portrait"
-            android:theme="@style/AppTheme" />
-
     </application>
 
 </manifest>

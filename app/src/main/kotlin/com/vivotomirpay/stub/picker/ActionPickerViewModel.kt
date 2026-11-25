@@ -1,6 +1,7 @@
 package com.vivotomirpay.stub.picker
 
 import androidx.annotation.MainThread
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.vivotomirpay.stub.PrefsHelper
@@ -64,8 +65,14 @@ class ActionPickerViewModel(
     private val repository: SettingsRepository,
     private val catalog: AppCatalog,
     private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
+    private val savedStateHandle: SavedStateHandle = SavedStateHandle(),
 ) : ViewModel() {
-    private val mutableState = MutableStateFlow(ActionPickerState())
+    private val mutableState = MutableStateFlow(
+        ActionPickerState(
+            query = savedStateHandle.get<String>(APP_QUERY).orEmpty(),
+            manualPackage = savedStateHandle.get<String>(MANUAL_PACKAGE).orEmpty(),
+        ),
+    )
     val state = mutableState.asStateFlow()
     private var closed = false
     private var selectionCompletionClaimed = false
@@ -96,8 +103,12 @@ class ActionPickerViewModel(
             ActionPickerIntent.PickManualPackage -> {
                 state.value.manualPackage.trim().takeIf(String::isNotEmpty)?.let(::save)
             }
-            is ActionPickerIntent.ChangeManualPackage -> mutableState.update { it.copy(manualPackage = intent.value) }
+            is ActionPickerIntent.ChangeManualPackage -> {
+                savedStateHandle[MANUAL_PACKAGE] = intent.value
+                mutableState.update { it.copy(manualPackage = intent.value) }
+            }
             is ActionPickerIntent.Search -> {
+                savedStateHandle[APP_QUERY] = intent.query
                 mutableState.update { it.copy(query = intent.query) }
                 searchApps()
             }
@@ -166,6 +177,9 @@ class ActionPickerViewModel(
         }
     }
 }
+
+private const val APP_QUERY = "action_picker_query"
+private const val MANUAL_PACKAGE = "action_picker_manual_package"
 
 internal fun AppEntry.matchesPickerQuery(query: String): Boolean =
     label.contains(query, ignoreCase = true) || packageName.contains(query, ignoreCase = true)

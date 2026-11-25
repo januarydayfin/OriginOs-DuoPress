@@ -85,7 +85,9 @@ class ShortcutPickerViewModel(
     private val savedStateHandle: SavedStateHandle,
     private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) : ViewModel() {
-    private val mutableState = MutableStateFlow(ShortcutPickerState())
+    private val mutableState = MutableStateFlow(
+        ShortcutPickerState(query = savedStateHandle.get<String>(SHORTCUT_QUERY).orEmpty()),
+    )
     val state = mutableState.asStateFlow()
     private var acknowledgedRequest: PlatformRequest? = null
     private var closed = false
@@ -99,8 +101,8 @@ class ShortcutPickerViewModel(
     private var appsLoaded = false
     private var apps = emptyList<AppEntry>()
     private var loads = emptyMap<String, ShortcutLoad>()
-    private var expanded = emptySet<String>()
-    private var collapsedInSearch = emptySet<String>()
+    private var expanded = savedStateHandle.get<ArrayList<String>>(EXPANDED_APPS).orEmpty().toSet()
+    private var collapsedInSearch = savedStateHandle.get<ArrayList<String>>(COLLAPSED_IN_SEARCH).orEmpty().toSet()
 
     init {
         viewModelScope.launch {
@@ -138,6 +140,8 @@ class ShortcutPickerViewModel(
             ShortcutPickerIntent.RetryApps -> if (state.value.access == ShortcutAccess.Ready) loadApps()
             is ShortcutPickerIntent.Search -> {
                 collapsedInSearch = emptySet()
+                savedStateHandle.remove<ArrayList<String>>(COLLAPSED_IN_SEARCH)
+                savedStateHandle[SHORTCUT_QUERY] = intent.query
                 mutableState.update { it.copy(query = intent.query) }
                 rebuildRows()
             }
@@ -260,6 +264,9 @@ class ShortcutPickerViewModel(
                 appsLoaded = true
                 apps = loaded
                 mutableState.update { it.copy(loadingApps = false) }
+                for (app in loaded) {
+                    if (app.packageName in expanded && app.packageName !in loads) loadShortcuts(app.packageName)
+                }
                 rebuildRows()
             } catch (cancelled: CancellationException) {
                 throw cancelled
@@ -277,8 +284,10 @@ class ShortcutPickerViewModel(
         val loaded = loads[packageName] as? ShortcutLoad.Loaded
         if (query.isNotEmpty() && loaded?.entries?.any { it.matches(query) } == true) {
             collapsedInSearch = collapsedInSearch.toggled(packageName)
+            savedStateHandle[COLLAPSED_IN_SEARCH] = ArrayList(collapsedInSearch)
         } else {
             expanded = expanded.toggled(packageName)
+            savedStateHandle[EXPANDED_APPS] = ArrayList(expanded)
             if (packageName in expanded && packageName !in loads) {
                 loadShortcuts(packageName)
                 return
@@ -292,7 +301,10 @@ class ShortcutPickerViewModel(
         val expectedGeneration = generation
         val id = ++nextLoadId
         activeLoads[packageName] = id
-        expanded = expanded + packageName
+        if (packageName !in expanded) {
+            expanded = expanded + packageName
+            savedStateHandle[EXPANDED_APPS] = ArrayList(expanded)
+        }
         loads = loads + (packageName to ShortcutLoad.Loading)
         rebuildRows()
         viewModelScope.launch {
@@ -382,6 +394,9 @@ class ShortcutPickerViewModel(
 
     private companion object {
         const val PERMISSION_IN_FLIGHT = "shortcut_permission_in_flight"
+        const val SHORTCUT_QUERY = "shortcut_picker_query"
+        const val EXPANDED_APPS = "shortcut_picker_expanded_apps"
+        const val COLLAPSED_IN_SEARCH = "shortcut_picker_collapsed_in_search"
     }
 }
 
