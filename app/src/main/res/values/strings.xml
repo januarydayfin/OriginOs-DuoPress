@@ -130,6 +130,16 @@
     <string name="picker_section_apps">Приложения</string>
     <string name="picker_search_hint">Поиск по названию или имени пакета…</string>
     <string name="picker_no_apps">Ничего не найдено</string>
+    <string name="picker_vivo_wallet">Vivo Wallet</string>
+    <string name="picker_manual_title">Ввод вручную</string>
+    <string name="picker_manual_package_hint">Имя пакета</string>
+    <string name="picker_manual_confirm">Выбрать пакет</string>
+    <string name="picker_loading_apps">Загрузка приложений…</string>
+    <string name="picker_apps_failed">Не удалось загрузить приложения</string>
+    <string name="picker_apps_failed_detail">Не удалось загрузить приложения: %1$s</string>
+    <string name="picker_save_failed">Не удалось сохранить действие. Попробуйте выбрать ещё раз.</string>
+    <string name="picker_app_expanded">Развёрнуто</string>
+    <string name="picker_app_collapsed">Свёрнуто</string>
     <string name="btn_close">Закрыть</string>
 
     <!-- Пикер ярлыков приложений -->
@@ -142,6 +152,11 @@
     <string name="shortcut_shizuku_pre_v11">Для ярлыков нужен Shizuku с API 11 или новее</string>
     <string name="shortcut_permission_required">Разрешите Double Power Key доступ в Shizuku</string>
     <string name="shortcut_permission_denied">Разрешение Shizuku не выдано</string>
+    <string name="shortcut_picker_checking_access">Проверка доступа к Shizuku…</string>
+    <string name="shortcut_permission_request">Запросить разрешение</string>
+    <string name="shortcut_permission_waiting">Ожидание ответа от Shizuku…</string>
+    <string name="shortcut_permission_interrupted">Запрос разрешения был прерван. Продолжите выбор ярлыка вручную.</string>
+    <string name="shortcut_open_shizuku_failed">Не удалось открыть Shizuku</string>
     <string name="shortcut_unsupported_uid">Поддерживается только Shizuku через ADB без root (UID shell)</string>
     <string name="shortcut_unsupported_api">Для ярлыков нужен Android 11 (API 30) или новее</string>
     <string name="shortcut_type_manifest">Из манифеста</string>

@@ -15,6 +15,8 @@ sealed interface PlatformCommand {
      */
     data class PreviewVibration(val durationMs: Int, val pattern: String) : PlatformCommand
     data object OpenAssistantSettings : PlatformCommand
+    data object RequestShortcutPermission : PlatformCommand
+    data object OpenShizuku : PlatformCommand
 
     /** Запускает действие через явный вход приложения, не через системный выбор обработчика. */
     data object TestAction : PlatformCommand

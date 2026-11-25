@@ -126,6 +126,16 @@
     <string name="picker_section_apps">Apps</string>
     <string name="picker_search_hint">Search by name or package…</string>
     <string name="picker_no_apps">Nothing found</string>
+    <string name="picker_vivo_wallet">Vivo Wallet</string>
+    <string name="picker_manual_title">Manual entry</string>
+    <string name="picker_manual_package_hint">Package name</string>
+    <string name="picker_manual_confirm">Select package</string>
+    <string name="picker_loading_apps">Loading apps…</string>
+    <string name="picker_apps_failed">Could not load apps</string>
+    <string name="picker_apps_failed_detail">Could not load apps: %1$s</string>
+    <string name="picker_save_failed">Could not save the action. Try selecting it again.</string>
+    <string name="picker_app_expanded">Expanded</string>
+    <string name="picker_app_collapsed">Collapsed</string>
     <string name="btn_close">Close</string>
 
     <!-- App shortcut picker -->
@@ -138,6 +148,11 @@
     <string name="shortcut_shizuku_pre_v11">Shortcuts require Shizuku API 11 or newer</string>
     <string name="shortcut_permission_required">Grant Double Power Key access in Shizuku</string>
     <string name="shortcut_permission_denied">Shizuku permission was not granted</string>
+    <string name="shortcut_picker_checking_access">Checking Shizuku access…</string>
+    <string name="shortcut_permission_request">Request permission</string>
+    <string name="shortcut_permission_waiting">Waiting for Shizuku…</string>
+    <string name="shortcut_permission_interrupted">The permission request was interrupted. Continue choosing a shortcut manually.</string>
+    <string name="shortcut_open_shizuku_failed">Could not open Shizuku</string>
     <string name="shortcut_unsupported_uid">Only Shizuku via ADB without root is supported (shell UID)</string>
     <string name="shortcut_unsupported_api">Shortcuts require Android 11 (API 30) or newer</string>
     <string name="shortcut_type_manifest">Manifest</string>

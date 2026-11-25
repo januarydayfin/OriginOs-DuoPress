@@ -167,7 +167,8 @@ class ActionsViewModel(
 private fun PlatformCommand.matches(status: HandlerStatus): Boolean = when (this) {
     PlatformCommand.ResolveHandler -> status == HandlerStatus.NoSpecificHandler
     is PlatformCommand.OpenAppDetails -> status is HandlerStatus.OtherApp && status.packageName == packageName
-    is PlatformCommand.PreviewVibration, PlatformCommand.OpenAssistantSettings, PlatformCommand.TestAction -> false
+    is PlatformCommand.PreviewVibration, PlatformCommand.OpenAssistantSettings, PlatformCommand.TestAction,
+    PlatformCommand.RequestShortcutPermission, PlatformCommand.OpenShizuku -> false
 }
 
 internal val lockscreenActionIds = setOf(PrefsHelper.SPECIAL_TORCH, PrefsHelper.SPECIAL_CAMERA)
