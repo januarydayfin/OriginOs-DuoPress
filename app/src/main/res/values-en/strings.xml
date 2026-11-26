@@ -1,15 +1,42 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Double Power Key</string>
-    <string name="swipe_activity_label">Double Power Key</string>
+    <string name="app_name">DuoPress</string>
+    <string name="swipe_activity_label">DuoPress</string>
 
     <!-- Header -->
-    <string name="header_title">Double Power Key</string>
-    <string name="header_subtitle">Remap the double power key press on Vivo / iQOO phones (OriginOS / FuntouchOS)</string>
+    <string name="header_title">DuoPress</string>
+    <string name="header_subtitle">Remap the power-button double press on vivo and iQOO phones running OriginOS</string>
+
+    <!-- Navigation -->
+    <string name="nav_actions">Actions</string>
+    <string name="nav_settings">Settings</string>
+    <string name="nav_diagnostics">Diagnostics</string>
+
+    <!-- Settings and Diagnostics screens -->
+    <string name="settings_device_loading">Checking device status…</string>
+    <string name="settings_platform_failed">Could not complete the system action</string>
+    <string name="settings_vpn_hint">The “VPN” action toggles the selected client in the background without opening its interface. Happ uses the happ://toggle_without_ui deeplink and the widget command; incy uses the llc.itdev.incy.TOGGLE broadcast. No root is required. “Auto” chooses the first installed client: Happ, then incy. If toggling fails, enable deeplink control in Happ settings and check the log in Diagnostics.</string>
+    <string name="app_label_with_package">%1$s (%2$s)</string>
+    <string name="diagnostics_log_loading">Loading the log…</string>
+    <string name="diagnostics_platform_failed">Could not launch the action or open the system screen</string>
+
+    <!-- Actions screen -->
+    <string name="actions_double_press">Double press</string>
+    <string name="actions_same_as_unlocked">Same as when unlocked</string>
+    <string name="actions_settings_loading">Loading settings…</string>
+    <string name="actions_handler_loading">Checking handler…</string>
+    <string name="actions_handler_current">Handler: %1$s</string>
+    <string name="actions_handler_no_specific">No specific handler selected</string>
+    <string name="actions_handler_unavailable">No handlers available</string>
+    <string name="actions_configure_handler">Set up button</string>
+    <string name="actions_open_handler_details">Open handler settings</string>
+    <string name="actions_platform_launch_failed">Could not open the system screen</string>
+    <plurals name="actions_menu_count">
+        <item quantity="one">%1$d action</item>
+        <item quantity="other">%1$d actions</item>
+    </plurals>
 
     <!-- Handler status -->
-    <string name="status_default_ok">✓ Double power press: this app is set as the default handler</string>
-    <string name="status_default_other">⚠ Double power press: currently assigned to %1$s</string>
     <string name="status_default_none">ℹ No default handler yet — trigger the system dialog and pick “Always”</string>
     <string name="handler_status_registered">Registered NFC_BUS_SWINGSPLASH handlers (%1$d):</string>
 
@@ -23,7 +50,6 @@
 
     <!-- Presets -->
     <string name="preset_mirpay">Mir Pay</string>
-    <string name="preset_sbpay">SBPay</string>
     <string name="preset_wallet">Wallet (key)</string>
     <string name="preset_torch">Flashlight</string>
     <string name="preset_camera">Camera</string>
@@ -90,6 +116,12 @@
     <string name="editor_empty">Menu is empty</string>
     <string name="editor_already_in_menu">Already in the menu</string>
     <string name="editor_menu_full">The menu holds up to 16 items</string>
+    <string name="editor_blank_item">Blank item</string>
+    <string name="editor_move_up">Move %1$s up</string>
+    <string name="editor_move_down">Move %1$s down</string>
+    <string name="editor_remove_item">Remove %1$s</string>
+    <string name="editor_save_failed">Could not save menu changes</string>
+    <string name="editor_preview_failed">Could not open the menu</string>
 
     <!-- Action picker -->
     <string name="picker_title_main">Double press action</string>
@@ -97,6 +129,16 @@
     <string name="picker_section_apps">Apps</string>
     <string name="picker_search_hint">Search by name or package…</string>
     <string name="picker_no_apps">Nothing found</string>
+    <string name="picker_manual_title">Manual entry</string>
+    <string name="picker_manual_package_hint">Package name</string>
+    <string name="picker_manual_confirm">Select package</string>
+    <string name="picker_loading_apps">Loading apps…</string>
+    <string name="picker_filtering_apps">Searching…</string>
+    <string name="picker_apps_failed">Could not load apps</string>
+    <string name="picker_apps_failed_detail">Could not load apps: %1$s</string>
+    <string name="picker_save_failed">Could not save the action. Try selecting it again.</string>
+    <string name="picker_app_expanded">Expanded</string>
+    <string name="picker_app_collapsed">Collapsed</string>
     <string name="btn_close">Close</string>
 
     <!-- App shortcut picker -->
@@ -107,8 +149,13 @@
     <string name="shortcut_picker_loading_error">Failed to load shortcuts: %1$s</string>
     <string name="shortcut_shizuku_unavailable">Shortcuts require Shizuku to be installed and started via ADB</string>
     <string name="shortcut_shizuku_pre_v11">Shortcuts require Shizuku API 11 or newer</string>
-    <string name="shortcut_permission_required">Grant Double Power Key access in Shizuku</string>
+    <string name="shortcut_permission_required">Grant DuoPress access in Shizuku</string>
     <string name="shortcut_permission_denied">Shizuku permission was not granted</string>
+    <string name="shortcut_picker_checking_access">Checking Shizuku access…</string>
+    <string name="shortcut_permission_request">Request permission</string>
+    <string name="shortcut_permission_waiting">Waiting for Shizuku…</string>
+    <string name="shortcut_permission_interrupted">The permission request was interrupted. Continue choosing a shortcut manually.</string>
+    <string name="shortcut_open_shizuku_failed">Could not open Shizuku</string>
     <string name="shortcut_unsupported_uid">Only Shizuku via ADB without root is supported (shell UID)</string>
     <string name="shortcut_unsupported_api">Shortcuts require Android 11 (API 30) or newer</string>
     <string name="shortcut_type_manifest">Manifest</string>
@@ -121,11 +168,11 @@
     <!-- Power handler -->
     <string name="card_handler_title">Power key handler</string>
     <string name="btn_test">Test the action</string>
-    <string name="btn_test_hint">Simulates the double power press without changing the system handler.</string>
-    <string name="btn_resolve">Trigger NFC_BUS_SWINGSPLASH (“Always”)</string>
-    <string name="btn_resolve_hint">Sends the same system Intent Vivo sends on a double press. Pick “Always” in the chooser to make this app the permanent handler.</string>
-    <string name="btn_appinfo">Current handler app info</string>
-    <string name="btn_appinfo_hint">Opens system settings for the currently assigned handler app. Reset the default there to bring the “Always” dialog back.</string>
+    <string name="btn_test_hint">Runs the action directly. It does not test the physical button or the system handler, and it does not change the assignment.</string>
+    <string name="btn_resolve">Ask Android to choose a handler</string>
+    <string name="btn_resolve_hint">Sends the Vivo system request. If Android shows a chooser, you can change the assignment there.</string>
+    <string name="btn_appinfo">App info</string>
+    <string name="btn_appinfo_hint">Opens Android app info for the handler or for this app. Whether you can clear the default there depends on your firmware.</string>
 
     <!-- Assistant -->
     <string name="card_assistant_title">Default assistant</string>

@@ -2,8 +2,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- Список всех установленных приложений и их ярлыков — основная функция приложения,
-         поэтому разрешение необходимо для выбора и запуска любого пакета. -->
+    <!-- PackageManager ищет пакеты для ручного запуска, в том числе без иконки в лаунчере. -->
     <uses-permission
         android:name="android.permission.QUERY_ALL_PACKAGES"
         tools:ignore="QueryAllPackagesPermission" />
@@ -16,29 +15,6 @@
     <uses-feature
         android:name="android.hardware.camera.flash"
         android:required="false" />
-
-    <queries>
-        <!-- Пресеты оплаты -->
-        <package android:name="ru.nspk.mirpay" />
-        <package android:name="com.vivo.wallet" />
-        <!-- Circle to Search / Gemini -->
-        <package android:name="com.google.android.googlequicksearchbox" />
-        <package android:name="com.google.android.apps.bard" />
-        <!-- VPN-клиенты: Happ (новый и старый пакеты) и incy -->
-        <package android:name="su.happ.proxyutility" />
-        <package android:name="com.happproxy" />
-        <package android:name="llc.itdev.incy" />
-        <intent>
-            <action android:name="android.intent.action.MAIN" />
-            <category android:name="android.intent.category.LAUNCHER" />
-        </intent>
-        <intent>
-            <action android:name="vivo.intent.action.NFC_BUS_SWINGSPLASH" />
-        </intent>
-        <intent>
-            <action android:name="android.media.action.STILL_IMAGE_CAMERA" />
-        </intent>
-    </queries>
 
     <application
         android:allowBackup="false"
@@ -93,7 +69,7 @@
             android:exported="true"
             android:label="@string/swipe_activity_label"
             android:theme="@style/TransparentSwipeTheme"
-            android:taskAffinity="com.vivotomirpay.stub.swipe"
+            android:taskAffinity="${applicationId}.swipe"
             android:excludeFromRecents="true"
             android:noHistory="true"
             android:launchMode="singleTask"
@@ -132,17 +108,9 @@
             android:excludeFromRecents="true"
             android:noHistory="true"
             android:launchMode="singleTask"
-            android:taskAffinity="com.vivotomirpay.stub.menu"
+            android:taskAffinity="${applicationId}.menu"
             android:configChanges="keyboardHidden|orientation|screenLayout|screenSize|smallestScreenSize|uiMode|density"
             android:theme="@style/MenuTheme" />
-
-        <!-- Экран настройки меню действий -->
-        <activity
-            android:name=".MenuEditorActivity"
-            android:exported="false"
-            android:label="@string/editor_menu_title"
-            android:screenOrientation="portrait"
-            android:theme="@style/AppTheme" />
 
     </application>
 

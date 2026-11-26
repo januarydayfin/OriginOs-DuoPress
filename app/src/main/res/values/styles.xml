@@ -8,6 +8,7 @@
         <item name="android:navigationBarColor">@color/window_bg</item>
         <item name="android:windowLightStatusBar">true</item>
         <item name="android:colorAccent">@color/accent</item>
+        <item name="android:windowSoftInputMode">adjustResize</item>
     </style>
 
     <!-- Тема прозрачной SwipeEntryActivity (как в MiCTS): без анимаций и фона. -->

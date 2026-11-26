@@ -1,15 +1,46 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Double Power Key</string>
-    <string name="swipe_activity_label">Double Power Key</string>
+    <string name="app_name">DuoPress</string>
+    <string name="swipe_activity_label">DuoPress</string>
 
     <!-- Заголовок -->
-    <string name="header_title">Double Power Key</string>
-    <string name="header_subtitle">Переназначение двойного нажатия кнопки питания для Vivo / iQOO (OriginOS / FuntouchOS)</string>
+    <string name="header_title">DuoPress</string>
+    <string name="header_subtitle">Двойное нажатие кнопки питания на vivo и iQOO с OriginOS</string>
+
+    <!-- Навигация -->
+    <string name="nav_actions">Действия</string>
+    <string name="nav_settings">Настройки</string>
+    <string name="nav_diagnostics">Диагностика</string>
+
+    <!-- Экраны «Настройки» и «Диагностика» -->
+    <string name="settings_device_loading">Проверка состояния устройства…</string>
+    <string name="settings_platform_failed">Не удалось выполнить системное действие</string>
+    <string name="settings_vpn_happ" translatable="false">Happ</string>
+    <string name="settings_vpn_incy" translatable="false">incy</string>
+    <string name="settings_vpn_hint">Действие «VPN» переключает выбранный клиент в фоне, не открывая его интерфейс. Happ использует deeplink happ://toggle_without_ui и команду виджета, incy — broadcast llc.itdev.incy.TOGGLE. Root не нужен. «Авто» выбирает первый установленный клиент: Happ, затем incy. Если переключение не срабатывает, включите управление по deeplink в настройках Happ и проверьте журнал в разделе «Диагностика».</string>
+    <string name="app_label_with_package">%1$s (%2$s)</string>
+    <string name="diagnostics_log_loading">Загрузка журнала…</string>
+    <string name="diagnostics_platform_failed">Не удалось запустить действие или открыть системный экран</string>
+
+    <!-- Экран «Действия» -->
+    <string name="actions_double_press">Двойное нажатие</string>
+    <string name="actions_same_as_unlocked">Как на разблокированном</string>
+    <string name="actions_settings_loading">Загрузка настроек…</string>
+    <string name="actions_handler_loading">Проверка обработчика…</string>
+    <string name="actions_handler_current">Обработчик: %1$s</string>
+    <string name="actions_handler_no_specific">Конкретный обработчик не выбран</string>
+    <string name="actions_handler_unavailable">Обработчики недоступны</string>
+    <string name="actions_configure_handler">Настроить кнопку</string>
+    <string name="actions_open_handler_details">Открыть настройки обработчика</string>
+    <string name="actions_platform_launch_failed">Не удалось открыть системный экран</string>
+    <plurals name="actions_menu_count">
+        <item quantity="one">%1$d действие</item>
+        <item quantity="few">%1$d действия</item>
+        <item quantity="many">%1$d действий</item>
+        <item quantity="other">%1$d действия</item>
+    </plurals>
 
     <!-- Статус обработчика -->
-    <string name="status_default_ok">✓ Двойное нажатие питания: эта заглушка назначена обработчиком по умолчанию</string>
-    <string name="status_default_other">⚠ Двойное нажатие питания: сейчас выбрано %1$s</string>
     <string name="status_default_none">ℹ Обработчик двойного нажатия ещё не зафиксирован — вызовите системный диалог и выберите «Всегда»</string>
     <string name="handler_status_registered">Зарегистрированные обработчики NFC_BUS_SWINGSPLASH (%1$d):</string>
 
@@ -23,7 +54,6 @@
 
     <!-- Пресеты -->
     <string name="preset_mirpay">Mir Pay</string>
-    <string name="preset_sbpay">СБПэй</string>
     <string name="preset_wallet">Wallet (ключ)</string>
     <string name="preset_torch">Фонарик</string>
     <string name="preset_camera">Камера</string>
@@ -90,6 +120,12 @@
     <string name="editor_empty">Меню пустое</string>
     <string name="editor_already_in_menu">Уже есть в меню</string>
     <string name="editor_menu_full">В меню максимум 16 пунктов</string>
+    <string name="editor_blank_item">Пустой пункт</string>
+    <string name="editor_move_up">Переместить «%1$s» вверх</string>
+    <string name="editor_move_down">Переместить «%1$s» вниз</string>
+    <string name="editor_remove_item">Удалить «%1$s»</string>
+    <string name="editor_save_failed">Не удалось сохранить изменения меню</string>
+    <string name="editor_preview_failed">Не удалось открыть меню</string>
 
     <!-- Пикер действий -->
     <string name="picker_title_main">Действие двойного нажатия</string>
@@ -97,6 +133,16 @@
     <string name="picker_section_apps">Приложения</string>
     <string name="picker_search_hint">Поиск по названию или имени пакета…</string>
     <string name="picker_no_apps">Ничего не найдено</string>
+    <string name="picker_manual_title">Ввод вручную</string>
+    <string name="picker_manual_package_hint">Имя пакета</string>
+    <string name="picker_manual_confirm">Выбрать пакет</string>
+    <string name="picker_loading_apps">Загрузка приложений…</string>
+    <string name="picker_filtering_apps">Поиск…</string>
+    <string name="picker_apps_failed">Не удалось загрузить приложения</string>
+    <string name="picker_apps_failed_detail">Не удалось загрузить приложения: %1$s</string>
+    <string name="picker_save_failed">Не удалось сохранить действие. Попробуйте выбрать ещё раз.</string>
+    <string name="picker_app_expanded">Развёрнуто</string>
+    <string name="picker_app_collapsed">Свёрнуто</string>
     <string name="btn_close">Закрыть</string>
 
     <!-- Пикер ярлыков приложений -->
@@ -107,8 +153,13 @@
     <string name="shortcut_picker_loading_error">Не удалось загрузить ярлыки: %1$s</string>
     <string name="shortcut_shizuku_unavailable">Для работы ярлыков установите Shizuku и запустите его через ADB</string>
     <string name="shortcut_shizuku_pre_v11">Для ярлыков нужен Shizuku с API 11 или новее</string>
-    <string name="shortcut_permission_required">Разрешите Double Power Key доступ в Shizuku</string>
+    <string name="shortcut_permission_required">Разрешите DuoPress доступ в Shizuku</string>
     <string name="shortcut_permission_denied">Разрешение Shizuku не выдано</string>
+    <string name="shortcut_picker_checking_access">Проверка доступа к Shizuku…</string>
+    <string name="shortcut_permission_request">Запросить разрешение</string>
+    <string name="shortcut_permission_waiting">Ожидание ответа от Shizuku…</string>
+    <string name="shortcut_permission_interrupted">Запрос разрешения был прерван. Продолжите выбор ярлыка вручную.</string>
+    <string name="shortcut_open_shizuku_failed">Не удалось открыть Shizuku</string>
     <string name="shortcut_unsupported_uid">Поддерживается только Shizuku через ADB без root (UID shell)</string>
     <string name="shortcut_unsupported_api">Для ярлыков нужен Android 11 (API 30) или новее</string>
     <string name="shortcut_type_manifest">Из манифеста</string>
@@ -121,11 +172,11 @@
     <!-- Обработчик кнопки питания -->
     <string name="card_handler_title">Обработчик кнопки питания</string>
     <string name="btn_test">Проверить действие</string>
-    <string name="btn_test_hint">Имитирует двойное нажатие питания, не меняя системного обработчика.</string>
-    <string name="btn_resolve">Вызвать NFC_BUS_SWINGSPLASH («Всегда»)</string>
-    <string name="btn_resolve_hint">Отправляет тот же системный Intent, что Vivo при двойном нажатии. В окне выбора отметьте «Всегда» — и заглушка станет постоянным обработчиком.</string>
-    <string name="btn_appinfo">Свойства текущего обработчика</string>
-    <string name="btn_appinfo_hint">Открывает настройки приложения, назначенного обработчиком. Там можно сбросить выбор, чтобы снова вызвать окно «Всегда».</string>
+    <string name="btn_test_hint">Запускает действие напрямую. Не проверяет физическую кнопку или системного обработчика и не меняет назначение.</string>
+    <string name="btn_resolve">Вызвать системный выбор обработчика</string>
+    <string name="btn_resolve_hint">Отправляет системный запрос Vivo. Если Android покажет выбор, назначение можно изменить в этом окне.</string>
+    <string name="btn_appinfo">Сведения о приложении</string>
+    <string name="btn_appinfo_hint">Открывает системные сведения об обработчике или об этом приложении. Можно ли сбросить назначение по умолчанию, зависит от прошивки.</string>
 
     <!-- Ассистент -->
     <string name="card_assistant_title">Ассистент по умолчанию</string>
