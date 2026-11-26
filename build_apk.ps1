@@ -1,6 +1,6 @@
 # build_apk.ps1
 # -----------------------------------------------------------------------------
-# Standalone PowerShell build script for Double Power Key (former VivoToMirPay).
+# Standalone PowerShell build script for DuoPress.
 #
 # Usage:
 #   .\build_apk.ps1              # builds release APK signed with debug key by default
@@ -31,7 +31,7 @@ param(
 $ErrorActionPreference = "Stop"
 $Root = Split-Path -Parent $MyInvocation.MyCommand.Path
 
-Write-Host "== Double Power Key build script ==" -ForegroundColor Cyan
+Write-Host "== DuoPress build script ==" -ForegroundColor Cyan
 Write-Host "Repo root: $Root"
 
 if (-not $env:ANDROID_HOME) {

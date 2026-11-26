@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # build_apk.sh
 # -----------------------------------------------------------------------------
-# Standalone POSIX build script for Double Power Key (former VivoToMirPay).
+# Standalone POSIX build script for DuoPress.
 #
 # Usage:
 #   ./build_apk.sh                # builds release APK signed with debug key by default
@@ -22,7 +22,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 cd "$ROOT"
 
-echo "== Double Power Key build script =="
+echo "== DuoPress build script =="
 echo "Repo root: $ROOT"
 
 if [ -z "${ANDROID_HOME:-}" ]; then

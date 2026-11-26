@@ -1,14 +1,14 @@
-# Double Power Key
+# DuoPress
 
 ![Android](https://img.shields.io/badge/Android-7.1%2B%20(API%2025%2B)-3DDC84?logo=android&logoColor=white)
-![OS](https://img.shields.io/badge/ROM-OriginOS%20%7C%20FuntouchOS-4285F4)
+![OS](https://img.shields.io/badge/ROM-OriginOS-415FFF)
 ![UI](https://img.shields.io/badge/UI-Material%20You%203%20(Dynamic%20Color)-A8C7FA)
 ![Root](https://img.shields.io/badge/Root-Not%20Required-brightgreen)
 ![Shizuku](https://img.shields.io/badge/Shizuku-Only%20for%20Shortcuts-orange)
 ![APK Size](https://img.shields.io/badge/Release%20APK-7.56%20MB-informational)
 ![Languages](https://img.shields.io/badge/Languages-Русский%20%7C%20English-blue)
 
-**Double Power Key** (`com.vivotomirpay.stub`) — приложение для смартфонов **Vivo** и **iQOO** (прошивки **OriginOS** и **FuntouchOS**), которое переназначает **двойное нажатие кнопки питания** со стандартного китайского кошелька **Vivo Wallet** на:
+**DuoPress** (`com.krayapp.duopress`) — приложение для смартфонов **vivo** и **iQOO** с **OriginOS**, которое переназначает **двойное нажатие кнопки питания** со стандартного китайского кошелька **Vivo Wallet** на:
 
 - запуск **Mir Pay**, **СБПэй** или **любого установленного приложения**;
 - переключение **фонарика**;
@@ -54,7 +54,7 @@
 
 ## ✨ Основные возможности
 
-- ⚡ **Запуск без промежуточных окон** — прозрачная [`SwipeEntryActivity`](app/src/main/kotlin/com/vivotomirpay/stub/SwipeEntryActivity.kt) без анимации перенаправляет вызов в выбранное приложение или действие и закрывается.
+- ⚡ **Запуск без промежуточных окон** — прозрачная [`SwipeEntryActivity`](app/src/main/kotlin/com/krayapp/duopress/SwipeEntryActivity.kt) без анимации перенаправляет вызов в выбранное приложение или действие и закрывается.
 - 💳 **Не сбивает приложение бесконтактной оплаты** — заглушка не регистрирует фиктивный HCE-сервис, поэтому **Mir Pay** остаётся основным платёжным средством NFC в системе.
 - 🔦 **Пресет «Фонарик»** — спец-значение `special:torch`. Вспышка переключается вкл/выкл, состояние синхронизируется через `CameraManager.setTorchMode`.
 - 🔍 **Пресет «Circle to Search»** — спец-значение `special:circle_to_search`. Тот же механизм, что в проекте [parallelcc/MiCTS](https://github.com/parallelcc/MiCTS): прямой вызов скрытого системного API `IVoiceInteractionManagerService.showSessionFromSession()` через reflection + библиотеку `org.lsposed.hiddenapibypass`. **Не требует root, не требует accessibility, не требует разрешений.**
@@ -78,7 +78,7 @@ Extras:   lb_from = "2"
 
 По умолчанию в китайских прошивках OriginOS этот интент обрабатывается системным кошельком `com.vivo.wallet` (`com.vivo.pay.swing.activity.NewSwipeActivity`) или `com.vivo.seclient`.
 
-**Double Power Key** объявляет экспортированную Activity [`SwipeEntryActivity`](app/src/main/kotlin/com/vivotomirpay/stub/SwipeEntryActivity.kt) с тем же `<intent-filter>` и системными метаданными Vivo в [`AndroidManifest.xml`](app/src/main/AndroidManifest.xml):
+**DuoPress** объявляет экспортированную Activity [`SwipeEntryActivity`](app/src/main/kotlin/com/krayapp/duopress/SwipeEntryActivity.kt) с тем же `<intent-filter>` и системными метаданными Vivo в [`AndroidManifest.xml`](app/src/main/AndroidManifest.xml):
 
 ```xml
 <meta-data android:name="com.vivo.wallet.support.typeswing" android:value="true" />
@@ -88,7 +88,7 @@ Extras:   lb_from = "2"
 <meta-data android:name="com.vivo.pay.nfc.supportVersion" android:value="1" />
 ```
 
-> ⚠️ Эти же метаданные продублированы внутри самой `SwipeEntryActivity` — некоторые сборки OriginOS / FuntouchOS ищут их именно на компоненте-обработчике.
+> ⚠️ Эти же метаданные продублированы внутри самой `SwipeEntryActivity` для совместимости со сборками OriginOS, которые ищут их на компоненте-обработчике.
 
 Дальше заглушка определяет состояние экрана (`KeyguardManager.isKeyguardLocked()`):
 
@@ -96,7 +96,7 @@ Extras:   lb_from = "2"
 - **экран заблокирован, настройка «Отдельное действие» включена** → выполняется действие из карточки «Заблокированный экран»;
 - **экран заблокирован, настройка выключена** → выполняется то же действие, что и на разблокированном экране.
 
-Исполнение действий вынесено в общий класс [`ActionRunner`](app/src/main/kotlin/com/vivotomirpay/stub/ActionRunner.kt), которым пользуются и перехватчик, и меню действий. Переключение VPN инкапсулировано в [`VpnController`](app/src/main/kotlin/com/vivotomirpay/stub/VpnController.kt).
+Исполнение действий вынесено в общий класс [`ActionRunner`](app/src/main/kotlin/com/krayapp/duopress/ActionRunner.kt), которым пользуются и перехватчик, и меню действий. Переключение VPN инкапсулировано в [`VpnController`](app/src/main/kotlin/com/krayapp/duopress/VpnController.kt).
 
 ---
 
@@ -105,11 +105,13 @@ Extras:   lb_from = "2"
 ### 1. Установка APK
 Установите готовый подписанный APK (или соберите сами — см. ниже).
 
+DuoPress устанавливается отдельно от прежнего **Double Power Key**. Настройки и разрешение Shizuku не переносятся. Если двойное нажатие всё ещё открывает старую версию, сбросьте её назначение по умолчанию, затем выберите **DuoPress** (см. шаг 5).
+
 ### 2. Включение двойного нажатия в настройках Vivo
-- **OriginOS / FuntouchOS:** `Настройки` → `Другие сети и подключения` → `NFC` → **«Дважды нажмите кнопку питания»** (или в настройках `Vivo Wallet`).
+- **OriginOS:** `Настройки` → `Другие сети и подключения` → `NFC` → **«Дважды нажмите кнопку питания»** (или в настройках `Vivo Wallet`).
 
 ### 3. Настройка действий
-1. Откройте **Double Power Key → Действия → Двойное нажатие** и выберите приложение или действие.
+1. Откройте **DuoPress → Действия → Двойное нажатие** и выберите приложение или действие.
 2. Откройте **«Заблокированный экран»**, чтобы включить и выбрать отдельное действие (по умолчанию фонарик) или вернуться к обычному действию.
 3. На вкладке **«Настройки»** настройте вибрацию и VPN-клиент (Happ / incy / авто).
 4. В **«Действия → Меню действий»** добавляйте действия и приложения, меняйте их порядок стрелками и открывайте предпросмотр.
@@ -117,24 +119,24 @@ Extras:   lb_from = "2"
 ### 4. Настройка действия «Ярлыки» (Android 11+, требуется Shizuku)
 1. Убедитесь, что на устройстве **Android 11 или новее**, и установите **Shizuku**.
 2. Запустите сервис Shizuku через **ADB** или **беспроводную отладку** по инструкции Shizuku. Root не нужен: сервис работает с **UID shell**. Root/Sui для этой фичи не поддерживаются.
-3. В **Double Power Key → Действия → Двойное нажатие** выберите **«Ярлыки»**.
-4. Выдайте **Double Power Key** разрешение Shizuku.
+3. В **DuoPress → Действия → Двойное нажатие** выберите **«Ярлыки»**.
+4. Выдайте **DuoPress** разрешение Shizuku.
 5. Выберите launcher-приложение, раскройте его и нажмите на нужный **manifest**, **dynamic** или **pinned** shortcut. Выбор сохранится и будет использоваться при двойном нажатии.
 
-Остальные действия по-прежнему работают без root и Shizuku. Если сервис Shizuku остановлен или разрешение отозвано, запуск ярлыка завершится ошибкой — её описание видно в **журнале Double Power Key**.
+Остальные действия по-прежнему работают без root и Shizuku. Если сервис Shizuku остановлен или разрешение отозвано, запуск ярлыка завершится ошибкой — её описание видно в **журнале DuoPress**.
 
 ### 5. Назначение обработчиком по умолчанию
 1. На вкладке **«Действия»** нажмите **«Настроить кнопку»** (если кнопка доступна) или дважды нажмите кнопку питания. Если уже выбран другой обработчик, сначала сбросьте его назначение в системных настройках приложения-обработчика.
-2. Если система показала окно выбора, выберите **Double Power Key** и **«Всегда»**.
+2. Если система показала окно выбора, выберите **DuoPress** и **«Всегда»**.
 3. Проверьте, какой обработчик показывает приложение. Статус показывает результат разрешения Intent, а не подтверждает, что вы нажали «Всегда».
 
 ---
 
 ## 📁 Структура проекта
 
-Один модуль `:app`; основной код находится в [`app/src/main/kotlin/com/vivotomirpay/stub/`](app/src/main/kotlin/com/vivotomirpay/stub/), без production Java.
+Один модуль `:app`; основной код находится в [`app/src/main/kotlin/com/krayapp/duopress/`](app/src/main/kotlin/com/krayapp/duopress/), без production Java.
 
-| Путь от `com/vivotomirpay/stub/` | Назначение |
+| Путь от `com/krayapp/duopress/` | Назначение |
 |---|---|
 | `MainActivity.kt`, `AppDependencies.kt`, `ui/navigation/` | Хост Compose, сборка зависимостей и Navigation Compose |
 | `actions/`, `settings/`, `diagnostics/` | Три корневые вкладки и их состояние/намерения в ViewModel (MVI) |
@@ -189,17 +191,19 @@ bash gradlew :app:assembleRelease
 - **Экспортированная `SwipeEntryActivity` принимает интенты от любого приложения**, поэтому значения extras пишутся в `SharedPreferences` только как обрезанные строки (≤ 100 символов на значение, ≤ 1000 на весь лог).
 - **VPN-действие не хранит никаких учётных данных** и не требует разрешений — оно лишь отправляет в установленный клиент тот же интент, что и его собственные виджет/шорткат.
 - Меню действий показывается над экраном блокировки только по явному выбору пользователя.
-- **Shizuku используется только действием «Ярлыки»** для получения и запуска shortcuts на Android 11+. Доступ выдаётся отдельным разрешением Double Power Key; сервис запускается через ADB без root (UID shell), root/Sui не поддерживаются. Остальные функции не требуют ни root, ни Shizuku.
+- **Shizuku используется только действием «Ярлыки»** для получения и запуска shortcuts на Android 11+. Доступ выдаётся отдельно для DuoPress; сервис запускается через ADB без root (UID shell), root/Sui не поддерживаются. Остальные функции не требуют ни root, ни Shizuku.
 
 ---
 
 ## 🌐 English (short)
 
-**Double Power Key** remaps the power-button double press on Vivo/iQOO (OriginOS/FuntouchOS) to an app, flashlight, camera, Happ/incy VPN toggle, Circle to Search, an app shortcut, or a customizable action menu. You can choose a separate flashlight/camera action for the lock screen. Only **Shortcuts** (manifest, dynamic, pinned) requires **Android 11+ and Shizuku started via ADB without root (shell UID)**; root/Sui are not supported.
+**DuoPress** remaps the power-button double press on vivo and iQOO phones running OriginOS to an app, flashlight, camera, Happ/incy VPN toggle, Circle to Search, an app shortcut, or a customizable action menu. You can choose a separate flashlight/camera action for the lock screen. Only **Shortcuts** (manifest, dynamic, pinned) requires **Android 11+ and Shizuku started via ADB without root (shell UID)**; root/Sui are not supported.
+
+DuoPress installs separately from **Double Power Key**. Settings and Shizuku access do not carry over. If the old app still opens on double press, clear its default handler and choose DuoPress instead.
 
 The Compose Material 3 UI has three tabs: **Actions** (button setup, pickers, lock screen and menu editor), **Settings** (vibration, VPN client and assistant), and **Diagnostics** (handler, test action and log). It follows the system's light/dark theme and locale (Russian/English), with dynamic colors on Android 12+. The in-app test does not exercise the physical button.
 
-Requires Android **7.1+ (API 25)**. Build with JDK 17+, SDK 36 and `bash gradlew :app:assembleRelease`. Production code is under [`app/src/main/kotlin/com/vivotomirpay/stub/`](app/src/main/kotlin/com/vivotomirpay/stub/). The locally measured, unminified release APK grew from **127,508** to **7,558,790 bytes** (**+7,431,282 bytes**); see the [verification matrix](docs/superpowers/plans/2026-11-25-kotlin-compose-mvi-verification.md) for scope and device limitations.
+Requires Android **7.1+ (API 25)**. Build with JDK 17+, SDK 36 and `bash gradlew :app:assembleRelease`. Production code is under [`app/src/main/kotlin/com/krayapp/duopress/`](app/src/main/kotlin/com/krayapp/duopress/). The locally measured, unminified release APK grew from **127,508** to **7,558,790 bytes** (**+7,431,282 bytes**); see the [verification matrix](docs/superpowers/plans/2026-11-25-kotlin-compose-mvi-verification.md) for scope and device limitations.
 
 ---
 

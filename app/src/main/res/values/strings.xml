@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Double Power Key</string>
-    <string name="swipe_activity_label">Double Power Key</string>
+    <string name="app_name">DuoPress</string>
+    <string name="swipe_activity_label">DuoPress</string>
 
     <!-- Заголовок -->
-    <string name="header_title">Double Power Key</string>
-    <string name="header_subtitle">Переназначение двойного нажатия кнопки питания для Vivo / iQOO (OriginOS / FuntouchOS)</string>
+    <string name="header_title">DuoPress</string>
+    <string name="header_subtitle">Двойное нажатие кнопки питания на vivo и iQOO с OriginOS</string>
 
     <!-- Навигация -->
     <string name="nav_actions">Действия</string>
@@ -153,7 +153,7 @@
     <string name="shortcut_picker_loading_error">Не удалось загрузить ярлыки: %1$s</string>
     <string name="shortcut_shizuku_unavailable">Для работы ярлыков установите Shizuku и запустите его через ADB</string>
     <string name="shortcut_shizuku_pre_v11">Для ярлыков нужен Shizuku с API 11 или новее</string>
-    <string name="shortcut_permission_required">Разрешите Double Power Key доступ в Shizuku</string>
+    <string name="shortcut_permission_required">Разрешите DuoPress доступ в Shizuku</string>
     <string name="shortcut_permission_denied">Разрешение Shizuku не выдано</string>
     <string name="shortcut_picker_checking_access">Проверка доступа к Shizuku…</string>
     <string name="shortcut_permission_request">Запросить разрешение</string>
