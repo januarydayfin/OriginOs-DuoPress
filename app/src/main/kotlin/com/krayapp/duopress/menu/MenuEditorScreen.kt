@@ -118,7 +118,7 @@ private fun EditorRows(
                 id.isEmpty() -> stringResource(R.string.editor_blank_item)
                 special != null -> stringResource(special)
                 packageName != null -> state.appLabels[packageName] ?: packageName
-                else -> id
+                else -> menuShortcutLabel(id) ?: id
             }
             ListItem(
                 headlineContent = { Text(label) },

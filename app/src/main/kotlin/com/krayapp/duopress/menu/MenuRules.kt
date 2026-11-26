@@ -1,6 +1,7 @@
 package com.krayapp.duopress.menu
 
 import com.krayapp.duopress.PrefsHelper
+import com.krayapp.duopress.ShortcutAction
 
 /** Изменение существующего JSON-массива. Индексы — позиции в массиве, не в панели запуска. */
 sealed interface MenuEdit {
@@ -32,6 +33,18 @@ fun visibleMenuItems(raw: List<String>): List<String> = raw.asSequence()
 // Java String.trim() у прежней панели удалял только символы <= U+0020.
 internal fun String.legacyMenuTrim(): String = trim { it <= ' ' }
 
+internal fun sameMenuItem(a: String, b: String): Boolean {
+    val first = a.legacyMenuTrim()
+    val second = b.legacyMenuTrim()
+    if (first == second) return true
+    val left = ShortcutAction.parse(first) ?: return false
+    val right = ShortcutAction.parse(second) ?: return false
+    return left.packageName == right.packageName && left.shortcutId == right.shortcutId
+}
+
+internal fun menuShortcutLabel(id: String): String? =
+    ShortcutAction.parse(id)?.let { it.label.ifBlank { it.shortcutId } }
+
 internal val menuSpecialIds = listOf(
     PrefsHelper.SPECIAL_TORCH,
     PrefsHelper.SPECIAL_CAMERA,
@@ -58,7 +71,7 @@ internal fun <T> applyMenuEdit(
         is MenuEdit.Add -> {
             val id = edit.id.legacyMenuTrim()
             if (id.isEmpty() || id == PrefsHelper.SPECIAL_MENU) return MenuEditResult.NoChange to raw
-            if (raw.any { idOf(it).legacyMenuTrim() == id }) return MenuEditResult.Duplicate to raw
+            if (raw.any { sameMenuItem(idOf(it), id) }) return MenuEditResult.Duplicate to raw
             if (raw.size >= PrefsHelper.MAX_MENU_ITEMS) return MenuEditResult.Full to raw
             raw + itemFromId(id)
         }

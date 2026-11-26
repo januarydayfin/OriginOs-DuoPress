@@ -23,6 +23,7 @@ import com.krayapp.duopress.menu.ActionSheet
 import com.krayapp.duopress.menu.MenuItemUi
 import com.krayapp.duopress.menu.MenuSelection
 import com.krayapp.duopress.menu.menuItemIcon
+import com.krayapp.duopress.menu.menuShortcutLabel
 import com.krayapp.duopress.menu.visibleMenuItems
 import com.krayapp.duopress.platform.optionalPickerValue
 import com.krayapp.duopress.platform.pickerIcon
@@ -139,7 +140,7 @@ private suspend fun loadMenuItems(
                 val name = client?.let(VpnController::clientLabel) ?: context.getString(R.string.vpn_name_generic)
                 context.getString(R.string.menu_item_vpn, name)
             }
-            else -> if (packageName == null) id else {
+            else -> if (packageName == null) menuShortcutLabel(id) ?: id else {
                 optionalPickerValue { pm.getApplicationLabel(pm.getApplicationInfo(packageName, 0)).toString() }
                     ?.takeIf(String::isNotEmpty) ?: packageName
             }
