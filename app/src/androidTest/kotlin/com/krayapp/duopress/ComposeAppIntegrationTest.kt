@@ -562,7 +562,7 @@ class ComposeAppIntegrationTest {
                 AppDependencies(it, shortcuts = gateway, shortcutControl = FakeShizuku(), isSupportedDevice = { true })
             }
             launch()
-            compose.onNode(text(R.string.card_menu_title)).performScrollTo().performClick()
+            openMenuEditor()
             val plus = hasContentDescription(context.getString(R.string.editor_add_action))
             compose.onNode(plus).performClick()
             compose.onNode(text(R.string.name_camera)).performClick()
@@ -601,7 +601,7 @@ class ComposeAppIntegrationTest {
         try {
             PrefsHelper.setMenuItemsJson(context, before)
             launch()
-            compose.onNode(text(R.string.card_menu_title)).performScrollTo().performClick()
+            openMenuEditor()
             val actions = compose.onAllNodes(SemanticsMatcher.keyIsDefined(SemanticsActions.CustomActions))
             val moveUp = actions[1].fetchSemanticsNode().config[SemanticsActions.CustomActions].first()
             compose.runOnIdle { moveUp.action() }
@@ -622,7 +622,7 @@ class ComposeAppIntegrationTest {
     @Test
     fun editorBackFirstClosesEmbeddedPickerAndPreviewOpensRealMenu() {
         launch()
-        compose.onNode(text(R.string.card_menu_title)).performScrollTo().performClick()
+        openMenuEditor()
         compose.onNode(heading(R.string.editor_menu_title)).assertIsDisplayed()
         compose.onNode(hasContentDescription(context.getString(R.string.editor_add_action))).performClick()
         compose.onNode(text(R.string.picker_section_apps)).performClick()
@@ -657,7 +657,7 @@ class ComposeAppIntegrationTest {
         try {
             PrefsHelper.setMenuItemsJson(context, "[]")
             launch()
-            compose.onNode(text(R.string.card_menu_title)).performScrollTo().performClick()
+            openMenuEditor()
             val plus = hasContentDescription(context.getString(R.string.editor_add_action))
             compose.onNode(plus).performClick()
             compose.onNode(text(R.string.picker_section_apps)).performClick()
@@ -765,6 +765,11 @@ class ComposeAppIntegrationTest {
     private fun openActionPicker() {
         compose.onNode(text(R.string.actions_double_press)).performClick()
         compose.onNode(heading(R.string.picker_title_main)).assertIsDisplayed()
+    }
+
+    private fun openMenuEditor() {
+        val menuCard = text(R.string.card_menu_title) and text(R.string.actions_double_press).not()
+        compose.onNode(menuCard).performScrollTo().performClick()
     }
 
     private fun searchDoublePressApp(packageName: String): SemanticsMatcher {
