@@ -8,6 +8,7 @@ import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.assertHeightIsAtLeast
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.assertIsSelected
@@ -89,6 +90,35 @@ class ActionsScreenTest {
         compose.onNodeWithText(resources.getString(R.string.lock_hint_off)).assertIsDisplayed()
         toggle.performClick()
         camera.assertIsSelected()
+    }
+
+    @Test
+    fun zeroMenuCountAppearsOnlyAfterSettingsLoad() {
+        val state = mutableStateOf(ActionsState())
+        compose.setContent { AppTheme { ActionsScreen(state.value, onIntent = {}, onOpen = {}) } }
+        val count = compose.activity.resources.getQuantityString(R.plurals.actions_menu_count, 0, 0)
+        compose.onNodeWithText(count).assertDoesNotExist()
+        compose.runOnIdle { state.value = fixture().copy(settings = fixture().settings!!.copy(menuItems = emptyList())) }
+        compose.onNodeWithText(count).assertIsDisplayed()
+    }
+
+    @Test
+    fun handlerCardOffersTheCurrentCommandAndShowsLaunchFailure() {
+        val state = mutableStateOf(fixture().copy(handler = HandlerSnapshot(HandlerStatus.NoSpecificHandler, emptyList())))
+        val intents = mutableListOf<ActionsIntent>()
+        compose.setContent { AppTheme { ActionsScreen(state.value, onIntent = { intents.add(it) }, onOpen = {}) } }
+        val resources = compose.activity.resources
+        compose.onNodeWithText(resources.getString(R.string.actions_configure_handler)).performClick()
+        val other = HandlerStatus.OtherApp("test.handler", "Wallet")
+        compose.runOnIdle {
+            state.value = state.value.copy(handler = HandlerSnapshot(other, emptyList()))
+        }
+        val details = compose.onNodeWithText(resources.getString(R.string.actions_open_handler_details))
+        details.performClick()
+        assertEquals(listOf(ActionsIntent.ResolveHandler, ActionsIntent.OpenHandlerDetails(other.packageName)), intents)
+        compose.runOnIdle { state.value = state.value.copy(handlerRefreshing = true, platformLaunchFailed = true) }
+        details.assertIsNotEnabled()
+        compose.onNodeWithText(resources.getString(R.string.actions_platform_launch_failed)).assertIsDisplayed()
     }
 
     private fun fixture() = ActionsState(
