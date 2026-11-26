@@ -148,6 +148,9 @@
     <string name="picker_app_expanded">Развёрнуто</string>
     <string name="picker_app_collapsed">Свёрнуто</string>
     <string name="btn_close">Закрыть</string>
+    <string name="vendor_warning_title">Неподдерживаемое устройство</string>
+    <string name="vendor_warning_message">Приложение предназначено для устройств vivo и iQOO. На других устройствах двойное нажатие кнопки питания может не работать.</string>
+    <string name="vendor_warning_opt_out">Не показывать снова</string>
 
     <!-- Пикер ярлыков приложений -->
     <string name="shortcut_picker_title">Выбор ярлыка</string>
@@ -156,6 +159,12 @@
     <string name="shortcut_picker_no_shortcuts">Нет доступных ярлыков</string>
     <string name="shortcut_picker_loading_error">Не удалось загрузить ярлыки: %1$s</string>
     <string name="shortcut_shizuku_unavailable">Для работы ярлыков установите Shizuku и запустите его через ADB</string>
+    <string name="shortcut_install_title">Установите Shizuku</string>
+    <string name="shortcut_install_message">Чтобы выбирать и запускать ярлыки других приложений, нужен Shizuku.</string>
+    <string name="shortcut_install_required">Требуется Shizuku</string>
+    <string name="shortcut_install_explain">Узнать почему</string>
+    <string name="shortcut_install_market">Открыть в магазине</string>
+    <string name="shortcut_install_market_failed">Не удалось открыть страницу Shizuku. Найдите приложение в магазине вручную.</string>
     <string name="shortcut_shizuku_pre_v11">Для ярлыков нужен Shizuku с API 11 или новее</string>
     <string name="shortcut_permission_required">Разрешите DuoPress доступ в Shizuku</string>
     <string name="shortcut_permission_denied">Разрешение Shizuku не выдано</string>

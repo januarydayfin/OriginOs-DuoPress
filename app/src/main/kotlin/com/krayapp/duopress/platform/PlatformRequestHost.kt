@@ -54,6 +54,8 @@ internal class PlatformRequestHost(
 ) {
     suspend fun prepareManagerIntent(): Intent? = platformOrNull { pending.shortcutControl.managerIntent() }
 
+    fun openShizukuListing(): Boolean = openShizukuStore(::start)
+
     fun execute(
         request: PlatformRequest,
         entryId: String,

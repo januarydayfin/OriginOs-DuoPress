@@ -44,6 +44,11 @@ import com.krayapp.duopress.ui.theme.AppTheme
  * @param onIntent обработчик действий, в том числе запроса предпросмотра.
  * @param modifier модификатор корневой области редактора.
  * @param loadIcon загрузчик цветного значка по имени пакета.
+ * @param showDialogs разрешает показывать сетку добавления на активном маршруте.
+ * @param onOpenShortcuts открывает выбор ярлыков.
+ * @param onOpenApps открывает выбор приложений.
+ * @param shizukuInstalled наличие пакета Shizuku; `null`, пока идёт проверка.
+ * @param onOpenShizukuStore открывает страницу установки и сообщает, удалось ли это.
  */
 @Composable
 fun MenuEditorScreen(
@@ -54,6 +59,8 @@ fun MenuEditorScreen(
     showDialogs: Boolean = true,
     onOpenShortcuts: () -> Unit = {},
     onOpenApps: () -> Unit = {},
+    shizukuInstalled: Boolean? = null,
+    onOpenShizukuStore: () -> Boolean = { false },
 ) {
     Box(modifier.fillMaxSize()) {
         EditorRows(state, onIntent, Modifier, loadIcon)
@@ -64,7 +71,7 @@ fun MenuEditorScreen(
             Icon(Icons.Default.Add, stringResource(R.string.editor_add_action))
         }
         if (showDialogs && state.picker == MenuPicker.Grid) {
-            MenuAddDialog(state, onIntent, onOpenApps, onOpenShortcuts)
+            MenuAddDialog(state, onIntent, onOpenApps, onOpenShortcuts, shizukuInstalled, onOpenShizukuStore)
         }
     }
 }

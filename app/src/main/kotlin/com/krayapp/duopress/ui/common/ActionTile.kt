@@ -36,6 +36,7 @@ import com.krayapp.duopress.R
  * @param alreadyAdded показывает подпись редактора об уже добавленном действии.
  * @param opensPicker показывает стрелку перехода к дополнительному выбору.
  * @param selected отмечает текущее действие цветом и семантикой, не блокируя нажатие.
+ * @param muted приглушает фон, не отключая действие (например, объяснение недоступности).
  * @param onClick запускает выбор или открывает вложенный экран.
  */
 @Composable
@@ -47,6 +48,7 @@ internal fun ActionTile(
     alreadyAdded: Boolean = false,
     opensPicker: Boolean = false,
     selected: Boolean = false,
+    muted: Boolean = false,
     onClick: () -> Unit,
 ) {
     val colors = MaterialTheme.colorScheme
@@ -54,10 +56,10 @@ internal fun ActionTile(
         onClick = onClick,
         modifier = if (selected) modifier.semantics { this.selected = true } else modifier,
         enabled = enabled,
-        colors = if (selected) {
-            CardDefaults.cardColors(containerColor = colors.primaryContainer, contentColor = colors.onPrimaryContainer)
-        } else {
-            CardDefaults.cardColors(containerColor = colors.secondaryContainer, contentColor = colors.onSecondaryContainer)
+        colors = when {
+            muted -> CardDefaults.cardColors(containerColor = colors.surfaceVariant, contentColor = colors.onSurfaceVariant)
+            selected -> CardDefaults.cardColors(containerColor = colors.primaryContainer, contentColor = colors.onPrimaryContainer)
+            else -> CardDefaults.cardColors(containerColor = colors.secondaryContainer, contentColor = colors.onSecondaryContainer)
         },
     ) {
         Column(Modifier.fillMaxWidth().heightIn(min = 88.dp).padding(10.dp)) {
