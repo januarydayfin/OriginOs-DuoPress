@@ -480,6 +480,8 @@ class ComposeAppIntegrationTest {
         compose.onNode(heading(R.string.editor_menu_title)).assertIsDisplayed()
         compose.onNode(hasContentDescription(context.getString(R.string.editor_add_action))).performClick()
         compose.onNode(text(R.string.picker_section_apps)).performClick()
+        compose.onNode(heading(R.string.picker_section_apps)).assertIsDisplayed()
+        compose.onNode(hasSetTextAction()).assertIsDisplayed()
         instrumentation.sendKeyDownUpSync(KeyEvent.KEYCODE_BACK)
         compose.onNode(text(R.string.name_shortcuts)).performClick()
         compose.onNode(heading(R.string.shortcut_picker_title)).assertIsDisplayed()
@@ -500,6 +502,39 @@ class ComposeAppIntegrationTest {
         compose.onNode(heading(R.string.editor_menu_title)).assertIsDisplayed()
         clickBack()
         assertActions()
+    }
+
+    @Test
+    fun menuAppPickerRestoresAndAddsOnlyOneApplication() {
+        val initial = PrefsHelper.getMenuItemsJson(context)
+        val pkg = "com.android.settings"
+        try {
+            PrefsHelper.setMenuItemsJson(context, "[]")
+            launch()
+            compose.onNode(text(R.string.card_menu_title)).performScrollTo().performClick()
+            val plus = hasContentDescription(context.getString(R.string.editor_add_action))
+            compose.onNode(plus).performClick()
+            compose.onNode(text(R.string.picker_section_apps)).performClick()
+            clickBack()
+            compose.onNode(text(R.string.name_shortcuts)).assertIsDisplayed()
+            compose.onNode(text(R.string.picker_section_apps)).performClick()
+            scenario.recreate()
+            compose.onNode(heading(R.string.picker_section_apps)).assertIsDisplayed()
+            compose.onNode(hasSetTextAction()).performTextInput(pkg)
+            val row = hasText(pkg) and hasSetTextAction().not()
+            compose.waitUntil(5_000) { compose.onAllNodes(row).fetchSemanticsNodes().isNotEmpty() }
+            val pick = checkNotNull(compose.onNode(row).fetchSemanticsNode().config[SemanticsActions.OnClick].action)
+            val back = checkNotNull(compose.onNode(hasContentDescription(context.getString(R.string.btn_back)))
+                .fetchSemanticsNode().config[SemanticsActions.OnClick].action)
+            compose.runOnIdle { pick(); pick(); back() }
+            compose.onNode(heading(R.string.editor_menu_title)).assertIsDisplayed()
+            compose.onNode(plus).assertIsDisplayed()
+            compose.onNode(text(R.string.name_shortcuts)).assertDoesNotExist()
+            assertEquals("""["app:$pkg"]""", PrefsHelper.getMenuItemsJson(context))
+            assertEquals(originalTarget, prefs.getString("target_package", null))
+        } finally {
+            PrefsHelper.setMenuItemsJson(context, initial)
+        }
     }
 
     private fun useHandlerProbe(probe: HandlerProbe) {

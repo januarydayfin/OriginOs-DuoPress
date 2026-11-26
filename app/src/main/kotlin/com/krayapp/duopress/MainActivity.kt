@@ -10,6 +10,7 @@ import androidx.annotation.VisibleForTesting
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.ui.res.painterResource
@@ -33,6 +34,7 @@ import com.krayapp.duopress.actions.LockscreenScreen
 import com.krayapp.duopress.diagnostics.DiagnosticsScreen
 import com.krayapp.duopress.diagnostics.DiagnosticsViewModel
 import com.krayapp.duopress.menu.MenuEditorIntent
+import com.krayapp.duopress.menu.MenuAppPickerScreen
 import com.krayapp.duopress.menu.MenuEditorScreen
 import com.krayapp.duopress.menu.MenuEditorViewModel
 import com.krayapp.duopress.menu.MenuPicker
@@ -58,6 +60,7 @@ import com.krayapp.duopress.ui.theme.AppTheme
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.first
 
 class MainActivity : ComponentActivity() {
     private val session by viewModels<LauncherSession> {
@@ -92,7 +95,12 @@ private class LauncherSession(val dependencies: AppDependencies) : ViewModel() {
         ViewModelProvider(entry, if (entry.destination.hasRoute<AppRoute.MenuShortcutPicker>())
             dependencies.menuShortcutModels else dependencies.routeModels)[T::class.java]
 
-    fun back(entry: NavBackStackEntry): Boolean {
+    fun back(entry: NavBackStackEntry, parent: NavBackStackEntry): Boolean {
+        if (entry.destination.hasRoute<AppRoute.MenuAppPicker>()) {
+            val editor = model<MenuEditorViewModel>(parent)
+            if (editor.state.value.saving) return true
+            if (editor.state.value.picker == MenuPicker.Apps) editor.onIntent(MenuEditorIntent.BackFromPicker)
+        }
         if (entry.destination.hasRoute<AppRoute.MenuShortcutPicker>()) {
             val selection = model<ShortcutPickerViewModel>(entry).state.value.selection
             if (selection == PickerSelection.Saving || selection == PickerSelection.Complete) return true
@@ -186,10 +194,27 @@ private fun LauncherContent(session: LauncherSession, host: PlatformRequestHost)
                 val lifecycle by entry.lifecycle.currentStateAsState()
                 MenuEditorScreen(state, model::onIntent, loadIcon = model::icon,
                     showDialogs = lifecycle == Lifecycle.State.RESUMED,
+                    onOpenApps = {
+                        if (navigator.isResumed(entry) && model.state.value.picker == MenuPicker.Grid) {
+                            model.onIntent(MenuEditorIntent.OpenApps)
+                            if (model.state.value.picker == MenuPicker.Apps) navigator.open(AppRoute.MenuAppPicker)
+                        }
+                    },
                     onOpenShortcuts = {
                         if (navigator.isResumed(entry) && model.state.value.canAdd && model.state.value.picker == MenuPicker.Grid)
                             navigator.open(AppRoute.MenuShortcutPicker)
                     })
+            }
+            AppRoute.MenuAppPicker -> {
+                val editor = remember(entry) { session.model<MenuEditorViewModel>(navigator.menuEditorEntry()) }
+                val state by editor.state.collectAsStateWithLifecycle()
+                LaunchedEffect(entry, editor) {
+                    entry.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+                        editor.state.first { it.picker == MenuPicker.None }
+                        navigator.back(entry, session::back)
+                    }
+                }
+                MenuAppPickerScreen(state, editor::onIntent, editor::icon)
             }
             AppRoute.ActionPicker -> {
                 val model = session.model<ActionPickerViewModel>(entry)

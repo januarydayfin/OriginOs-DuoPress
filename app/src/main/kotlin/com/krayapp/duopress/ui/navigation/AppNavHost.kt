@@ -68,6 +68,7 @@ class AppNavigator internal constructor(private val navController: NavHostContro
     }
 
     internal fun actionsEntry(): NavBackStackEntry = navController.getBackStackEntry<AppRoute.Actions>()
+    internal fun menuEditorEntry(): NavBackStackEntry = navController.getBackStackEntry<AppRoute.MenuEditor>()
 
     internal fun completeMenuAddition(entry: NavBackStackEntry, claim: (Boolean) -> Boolean,
                                       finishEditor: (NavBackStackEntry) -> Unit, exit: (NavBackStackEntry) -> Unit) {
@@ -81,9 +82,10 @@ class AppNavigator internal constructor(private val navController: NavHostContro
     internal fun isResumed(entry: NavBackStackEntry): Boolean =
         navController.currentBackStackEntry === entry && entry.lifecycle.currentState == Lifecycle.State.RESUMED
 
-    internal fun back(entry: NavBackStackEntry, onBack: (NavBackStackEntry) -> Boolean) {
+    internal fun back(entry: NavBackStackEntry, onBack: (NavBackStackEntry, NavBackStackEntry) -> Boolean) {
         if (navController.currentBackStackEntry !== entry) return
-        if (navController.previousBackStackEntry != null && !onBack(entry)) navController.popBackStack()
+        val parent = navController.previousBackStackEntry ?: return
+        if (!onBack(entry, parent)) navController.popBackStack()
     }
 
     internal fun completeActionSelection(
@@ -105,7 +107,7 @@ class AppNavigator internal constructor(private val navController: NavHostContro
 fun AppNavHost(
     render: @Composable (AppRoute, NavBackStackEntry, AppNavigator) -> Unit,
     modifier: Modifier = Modifier,
-    onBack: (NavBackStackEntry) -> Boolean = { false },
+    onBack: (NavBackStackEntry, NavBackStackEntry) -> Boolean = { _, _ -> false },
     menuEditorActions: @Composable (NavBackStackEntry) -> Unit = {},
 ) {
     val navController = rememberNavController()
@@ -192,6 +194,7 @@ fun AppNavHost(
             composable<AppRoute.ActionPicker> { renderDestination(AppRoute.ActionPicker, it, navigator) }
             composable<AppRoute.ShortcutPicker> { renderDestination(AppRoute.ShortcutPicker, it, navigator) }
             composable<AppRoute.MenuShortcutPicker> { renderDestination(AppRoute.MenuShortcutPicker, it, navigator) }
+            composable<AppRoute.MenuAppPicker> { renderDestination(AppRoute.MenuAppPicker, it, navigator) }
             composable<AppRoute.Lockscreen> { renderDestination(AppRoute.Lockscreen, it, navigator) }
             composable<AppRoute.MenuEditor> { renderDestination(AppRoute.MenuEditor, it, navigator) }
         }
@@ -242,6 +245,7 @@ private val nestedTitles = mapOf(
     AppRoute.ActionPicker to R.string.picker_title_main,
     AppRoute.ShortcutPicker to R.string.shortcut_picker_title,
     AppRoute.MenuShortcutPicker to R.string.shortcut_picker_title,
+    AppRoute.MenuAppPicker to R.string.picker_section_apps,
     AppRoute.Lockscreen to R.string.card_lock_title,
     AppRoute.MenuEditor to R.string.editor_menu_title,
 )

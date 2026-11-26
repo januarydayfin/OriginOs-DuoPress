@@ -53,6 +53,7 @@ fun MenuEditorScreen(
     loadIcon: suspend (String) -> ImageBitmap? = { null },
     showDialogs: Boolean = true,
     onOpenShortcuts: () -> Unit = {},
+    onOpenApps: () -> Unit = {},
 ) {
     Box(modifier.fillMaxSize()) {
         EditorRows(state, onIntent, Modifier, loadIcon)
@@ -62,8 +63,8 @@ fun MenuEditorScreen(
         ) {
             Icon(Icons.Default.Add, stringResource(R.string.editor_add_action))
         }
-        if (showDialogs && state.picker != MenuPicker.None) {
-            MenuAddDialog(state, onIntent, loadIcon, onOpenShortcuts)
+        if (showDialogs && state.picker == MenuPicker.Grid) {
+            MenuAddDialog(state, onIntent, onOpenApps, onOpenShortcuts)
         }
     }
 }

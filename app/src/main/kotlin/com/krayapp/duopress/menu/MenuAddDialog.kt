@@ -8,38 +8,33 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.krayapp.duopress.R
-import com.krayapp.duopress.picker.AppSearchList
-import com.krayapp.duopress.picker.PickerMessage
-import com.krayapp.duopress.picker.PickerSearchField
 
 @Composable
 internal fun MenuAddDialog(
     state: MenuEditorState,
     onIntent: (MenuEditorIntent) -> Unit,
-    loadIcon: suspend (String) -> ImageBitmap?,
+    onOpenApps: () -> Unit,
     onOpenShortcuts: () -> Unit,
 ) {
-    val grid = state.picker == MenuPicker.Grid
     val back = { onIntent(MenuEditorIntent.BackFromPicker) }
     AlertDialog(
         onDismissRequest = back,
-        title = { Text(stringResource(if (grid) R.string.editor_add_action else R.string.picker_section_apps)) },
+        title = { Text(stringResource(R.string.editor_add_action)) },
         confirmButton = {
             TextButton(onClick = back, enabled = !state.saving) {
-                Text(stringResource(if (grid) android.R.string.cancel else R.string.btn_back))
+                Text(stringResource(android.R.string.cancel))
             }
         },
         text = {
-            if (grid) Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 EditorFeedback(state)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     AddTile(R.string.picker_section_apps, R.drawable.ic_action_app, Modifier.weight(1f), state.canAdd,
-                        opensPicker = true) { onIntent(MenuEditorIntent.OpenApps) }
+                        opensPicker = true, onClick = onOpenApps)
                     AddTile(R.string.name_shortcuts, R.drawable.ic_action_shortcut, Modifier.weight(1f), state.canAdd,
                         opensPicker = true, onClick = onOpenShortcuts)
                 }
@@ -51,20 +46,6 @@ internal fun MenuAddDialog(
                                 state.canAdd && !added, alreadyAdded = added) { onIntent(MenuEditorIntent.PickSpecial(id)) }
                         }
                     }
-                }
-            } else Column(Modifier.fillMaxWidth().heightIn(max = 480.dp)) {
-                PickerSearchField(state.query, stringResource(R.string.picker_search_hint)) {
-                    onIntent(MenuEditorIntent.SearchApps(it))
-                }
-                EditorFeedback(state)
-                when {
-                    state.loadingApps -> PickerMessage(stringResource(R.string.picker_loading_apps))
-                    state.appsFailed -> PickerMessage(stringResource(R.string.picker_apps_failed),
-                        onRetry = { onIntent(MenuEditorIntent.ReloadApps) })
-                    else -> AppSearchList(state.visibleApps, { onIntent(MenuEditorIntent.PickApp(it)) },
-                        Modifier.weight(1f, fill = false), loadIcon,
-                        alreadyAdded = { pkg -> state.menuItems.any { sameMenuItem(it, "app:$pkg") } },
-                        enabled = state.canAdd)
                 }
             }
         },
