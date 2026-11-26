@@ -11,6 +11,7 @@ import com.krayapp.duopress.diagnostics.DiagnosticsViewModel
 import com.krayapp.duopress.menu.MenuEditorViewModel
 import com.krayapp.duopress.picker.ActionPickerViewModel
 import com.krayapp.duopress.picker.ShortcutPickerViewModel
+import com.krayapp.duopress.picker.ShortcutPickTarget
 import com.krayapp.duopress.platform.AndroidAppCatalog
 import com.krayapp.duopress.platform.AndroidDeviceStatusProbe
 import com.krayapp.duopress.platform.AndroidHandlerProbe
@@ -35,6 +36,13 @@ internal class AppDependencies(
     private val labels = LegacyActionLabelResolver(appContext)
     private val androidShortcuts by lazy { AndroidShortcutGateway(appContext) }
     val shortcutControl = shortcutControl ?: AndroidShortcutControl { androidShortcuts }
+
+    val menuShortcutModels = viewModelFactory {
+        initializer {
+            ShortcutPickerViewModel(repository, catalog, shortcuts ?: androidShortcuts, createSavedStateHandle(),
+                target = ShortcutPickTarget.MenuItem)
+        }
+    }
 
     val routeModels = viewModelFactory {
         initializer { ActionsViewModel(repository, handlerProbe, labels) }

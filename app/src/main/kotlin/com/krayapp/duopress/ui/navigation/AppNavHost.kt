@@ -69,6 +69,15 @@ class AppNavigator internal constructor(private val navController: NavHostContro
 
     internal fun actionsEntry(): NavBackStackEntry = navController.getBackStackEntry<AppRoute.Actions>()
 
+    internal fun completeMenuAddition(entry: NavBackStackEntry, claim: (Boolean) -> Boolean,
+                                      finishEditor: (NavBackStackEntry) -> Unit, exit: (NavBackStackEntry) -> Unit) {
+        val editor = navController.previousBackStackEntry ?: return
+        if (!editor.destination.hasRoute<AppRoute.MenuEditor>() || !isResumed(entry) || !claim(true)) return
+        finishEditor(editor)
+        exit(entry)
+        navController.popBackStack()
+    }
+
     internal fun isResumed(entry: NavBackStackEntry): Boolean =
         navController.currentBackStackEntry === entry && entry.lifecycle.currentState == Lifecycle.State.RESUMED
 
@@ -97,6 +106,7 @@ fun AppNavHost(
     render: @Composable (AppRoute, NavBackStackEntry, AppNavigator) -> Unit,
     modifier: Modifier = Modifier,
     onBack: (NavBackStackEntry) -> Boolean = { false },
+    menuEditorActions: @Composable (NavBackStackEntry) -> Unit = {},
 ) {
     val navController = rememberNavController()
     val navigator = remember(navController) { AppNavigator(navController) }
@@ -120,6 +130,9 @@ fun AppNavHost(
                 TopAppBar(
                     title = { Text(stringResource(nestedTitle), Modifier.semantics { heading() }) },
                     windowInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Top),
+                    actions = {
+                        entry?.takeIf { it.destination.hasRoute<AppRoute.MenuEditor>() }?.let { menuEditorActions(it) }
+                    },
                     navigationIcon = {
                         IconButton(onClick = { entry?.let { navigator.back(it, onBack) } }) {
                             Icon(
@@ -178,6 +191,7 @@ fun AppNavHost(
             composable<AppRoute.Diagnostics> { renderDestination(AppRoute.Diagnostics, it, navigator) }
             composable<AppRoute.ActionPicker> { renderDestination(AppRoute.ActionPicker, it, navigator) }
             composable<AppRoute.ShortcutPicker> { renderDestination(AppRoute.ShortcutPicker, it, navigator) }
+            composable<AppRoute.MenuShortcutPicker> { renderDestination(AppRoute.MenuShortcutPicker, it, navigator) }
             composable<AppRoute.Lockscreen> { renderDestination(AppRoute.Lockscreen, it, navigator) }
             composable<AppRoute.MenuEditor> { renderDestination(AppRoute.MenuEditor, it, navigator) }
         }
@@ -227,6 +241,7 @@ private val rootSections = listOf(
 private val nestedTitles = mapOf(
     AppRoute.ActionPicker to R.string.picker_title_main,
     AppRoute.ShortcutPicker to R.string.shortcut_picker_title,
+    AppRoute.MenuShortcutPicker to R.string.shortcut_picker_title,
     AppRoute.Lockscreen to R.string.card_lock_title,
     AppRoute.MenuEditor to R.string.editor_menu_title,
 )

@@ -114,11 +114,13 @@
     <string name="menu_item_vpn">VPN: %1$s</string>
 
     <!-- Редактор меню -->
-    <string name="editor_menu_title">Настройка меню</string>
+    <string name="editor_menu_title">Меню действий</string>
+    <string name="editor_order">Порядок в меню</string>
+    <string name="editor_count">%1$d / %2$d</string>
     <string name="editor_hint">Пункты запускаются одним тапом. Стрелки меняют порядок, крестик удаляет. Изменения сохраняются сразу.</string>
-    <string name="editor_add_action">Добавить действие…</string>
+    <string name="editor_add_action">Добавить в меню</string>
     <string name="editor_add_app">Добавить приложение…</string>
-    <string name="editor_empty">Меню пустое</string>
+    <string name="editor_empty">Нажмите +, чтобы добавить действие</string>
     <string name="editor_already_in_menu">Уже есть в меню</string>
     <string name="editor_menu_full">В меню максимум 16 пунктов</string>
     <string name="editor_blank_item">Пустой пункт</string>

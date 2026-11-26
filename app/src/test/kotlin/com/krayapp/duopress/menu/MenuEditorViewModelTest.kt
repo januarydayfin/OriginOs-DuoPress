@@ -30,9 +30,34 @@ import org.junit.Test
 @OptIn(ExperimentalCoroutinesApi::class)
 class MenuEditorViewModelTest {
     @Test
+    fun noSeventeenthItemAndRemovingOneReopensAdding() = withEditor { editor, repository ->
+        repository.replaceMenu(List(15) { "app:$it" })
+        advanceUntilIdle()
+        editor.onIntent(MenuEditorIntent.OpenGrid)
+        editor.onIntent(MenuEditorIntent.PickSpecial("special:camera"))
+        advanceUntilIdle()
+        assertFalse(editor.state.value.canAdd)
+        editor.onIntent(MenuEditorIntent.OpenGrid)
+        assertEquals(MenuPicker.None, editor.state.value.picker)
+        editor.onIntent(MenuEditorIntent.RemoveAt(15, editor.state.value.menuItems))
+        advanceUntilIdle()
+        assertTrue(editor.state.value.canAdd)
+    }
+    @Test
+    fun appBackReturnsToGridBeforeLeavingEditor() = withEditor { editor, _ ->
+        editor.onIntent(MenuEditorIntent.OpenGrid)
+        editor.onIntent(MenuEditorIntent.OpenApps)
+        assertEquals(MenuPicker.Apps, editor.state.value.picker)
+        editor.onIntent(MenuEditorIntent.BackFromPicker)
+        assertEquals(MenuPicker.Grid, editor.state.value.picker)
+        editor.onIntent(MenuEditorIntent.BackFromPicker)
+        assertEquals(MenuPicker.None, editor.state.value.picker)
+    }
+    @Test
     fun editorExpandsSearchableAppPicker() = withEditor { editor, repository ->
         val maps = AppEntry("org.maps", "Карты")
         assertEquals(MenuPicker.None, editor.state.value.picker)
+        editor.onIntent(MenuEditorIntent.OpenGrid)
         editor.onIntent(MenuEditorIntent.OpenApps)
         advanceUntilIdle()
         assertEquals(MenuPicker.Apps, editor.state.value.picker)
@@ -57,14 +82,14 @@ class MenuEditorViewModelTest {
         advanceUntilIdle()
         assertEquals(listOf("", "special:camera"), editor.state.value.menuItems)
 
-        editor.onIntent(MenuEditorIntent.OpenSpecials)
+        editor.onIntent(MenuEditorIntent.OpenGrid)
         editor.onIntent(MenuEditorIntent.PickSpecial("special:menu"))
         advanceUntilIdle()
         assertEquals(listOf("", "special:camera"), repository.snapshot().menuItems)
         editor.onIntent(MenuEditorIntent.PickSpecial("special:camera"))
         advanceUntilIdle()
         assertEquals(MenuEditResult.Duplicate, editor.state.value.editResult)
-        assertEquals(MenuPicker.Specials, editor.state.value.picker)
+        assertEquals(MenuPicker.Grid, editor.state.value.picker)
 
         editor.onIntent(MenuEditorIntent.PickSpecial("special:vpn"))
         advanceUntilIdle()
@@ -120,6 +145,7 @@ class MenuEditorViewModelTest {
 
     @Test
     fun obsoleteAppPickCannotSaveWhileNewFilterIsPending() = withEditor { editor, repository ->
+        editor.onIntent(MenuEditorIntent.OpenGrid)
         editor.onIntent(MenuEditorIntent.OpenApps)
         advanceUntilIdle()
         assertTrue(editor.state.value.visibleApps.any { it.packageName == "org.maps" })
@@ -141,6 +167,7 @@ class MenuEditorViewModelTest {
 
     @Test
     fun searchCannotRepopulateAnAppPickerClosedBySaving() = withEditor { editor, _ ->
+        editor.onIntent(MenuEditorIntent.OpenGrid)
         editor.onIntent(MenuEditorIntent.OpenApps)
         advanceUntilIdle()
         editor.onIntent(MenuEditorIntent.PickApp("org.maps"))

@@ -10,6 +10,11 @@ import androidx.annotation.VisibleForTesting
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
+import androidx.lifecycle.compose.currentStateAsState
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -84,13 +89,14 @@ private class LauncherSession(val dependencies: AppDependencies) : ViewModel() {
     val requests = PendingPlatformRequests(viewModelScope, dependencies.shortcutControl)
 
     inline fun <reified T : ViewModel> model(entry: NavBackStackEntry): T =
-        ViewModelProvider(entry, dependencies.routeModels)[T::class.java]
+        ViewModelProvider(entry, if (entry.destination.hasRoute<AppRoute.MenuShortcutPicker>())
+            dependencies.menuShortcutModels else dependencies.routeModels)[T::class.java]
 
     fun back(entry: NavBackStackEntry): Boolean {
         if (entry.destination.hasRoute<AppRoute.MenuEditor>()) {
             val model = model<MenuEditorViewModel>(entry)
             if (model.state.value.picker != MenuPicker.None) {
-                model.onIntent(MenuEditorIntent.ClosePicker)
+                model.onIntent(MenuEditorIntent.BackFromPicker)
                 return true
             }
         }
@@ -103,7 +109,7 @@ private class LauncherSession(val dependencies: AppDependencies) : ViewModel() {
         when {
             entry.destination.hasRoute<AppRoute.ActionPicker>() ->
                 model<ActionPickerViewModel>(entry).onIntent(ActionPickerIntent.Exit)
-            entry.destination.hasRoute<AppRoute.ShortcutPicker>() ->
+            entry.destination.hasRoute<AppRoute.ShortcutPicker>() || entry.destination.hasRoute<AppRoute.MenuShortcutPicker>() ->
                 model<ShortcutPickerViewModel>(entry).onIntent(ShortcutPickerIntent.Exit)
         }
     }
@@ -113,7 +119,14 @@ private class LauncherSession(val dependencies: AppDependencies) : ViewModel() {
 
 @Composable
 private fun LauncherContent(session: LauncherSession, host: PlatformRequestHost) {
-    AppNavHost(onBack = session::back, render = { route, entry, navigator ->
+    AppNavHost(onBack = session::back, menuEditorActions = { entry ->
+        val model = session.model<MenuEditorViewModel>(entry)
+        val state by model.state.collectAsStateWithLifecycle()
+        IconButton(onClick = { model.onIntent(MenuEditorIntent.Preview) },
+            enabled = state.previewEnabled && state.picker == MenuPicker.None) {
+            Icon(painterResource(R.drawable.ic_action_preview), stringResource(R.string.btn_menu_preview))
+        }
+    }, render = { route, entry, navigator ->
         when (route) {
             AppRoute.Actions, AppRoute.Lockscreen -> {
                 val model = session.model<ActionsViewModel>(
@@ -166,7 +179,13 @@ private fun LauncherContent(session: LauncherSession, host: PlatformRequestHost)
                 ) { id, outcome ->
                     model.onPlatformResult(id, outcome == PlatformOutcome.Launched)
                 }
-                MenuEditorScreen(state, model::onIntent, loadIcon = model::icon)
+                val lifecycle by entry.lifecycle.currentStateAsState()
+                MenuEditorScreen(state, model::onIntent, loadIcon = model::icon,
+                    showDialogs = lifecycle == Lifecycle.State.RESUMED,
+                    onOpenShortcuts = {
+                        if (navigator.isResumed(entry) && model.state.value.canAdd && model.state.value.picker == MenuPicker.Grid)
+                            navigator.open(AppRoute.MenuShortcutPicker)
+                    })
             }
             AppRoute.ActionPicker -> {
                 val model = session.model<ActionPickerViewModel>(entry)
@@ -182,10 +201,13 @@ private fun LauncherContent(session: LauncherSession, host: PlatformRequestHost)
                     }
                 })
             }
-            AppRoute.ShortcutPicker -> {
+            AppRoute.ShortcutPicker, AppRoute.MenuShortcutPicker -> {
                 val model = session.model<ShortcutPickerViewModel>(entry)
                 CompleteSelection(
                     entry, navigator, model.state, { it.selectionComplete }, model::claimSelectionCompletion, session::exit,
+                    finishEditor = if (route == AppRoute.MenuShortcutPicker) { editor ->
+                        session.model<MenuEditorViewModel>(editor).onIntent(MenuEditorIntent.FinishMenuAddition)
+                    } else null,
                 )
                 PlatformRequests(
                     entry, navigator, host, session.requests, model, model.state,
@@ -215,11 +237,15 @@ private fun <S> CompleteSelection(
     isComplete: (S) -> Boolean,
     claim: (Boolean) -> Boolean,
     exit: (NavBackStackEntry) -> Unit,
+    finishEditor: ((NavBackStackEntry) -> Unit)? = null,
 ) {
     LaunchedEffect(entry, navigator) {
         entry.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
             state.map(isComplete).distinctUntilChanged().collect {
-                if (it) navigator.completeActionSelection(entry, claim, exit)
+                if (it) {
+                    if (finishEditor == null) navigator.completeActionSelection(entry, claim, exit)
+                    else navigator.completeMenuAddition(entry, claim, finishEditor, exit)
+                }
             }
         }
     }

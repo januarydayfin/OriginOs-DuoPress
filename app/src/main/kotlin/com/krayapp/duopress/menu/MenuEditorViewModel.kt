@@ -22,7 +22,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-enum class MenuPicker { None, Apps, Specials }
+enum class MenuPicker { None, Grid, Apps }
 
 /**
  * Состояние редактора и его встроенных списков добавления.
@@ -46,14 +46,16 @@ data class MenuEditorState(
     val platformLaunchFailed: Boolean = false,
     internal val acknowledgedPreview: Long? = null,
 ) {
+    val canAdd: Boolean get() = !loadingMenu && !saving && menuItems.size < com.krayapp.duopress.PrefsHelper.MAX_MENU_ITEMS
     val previewEnabled: Boolean
         get() = !loadingMenu && !saving && platformRequest == null && acknowledgedPreview == null
 }
 
 sealed interface MenuEditorIntent {
     data object OpenApps : MenuEditorIntent
-    data object OpenSpecials : MenuEditorIntent
-    data object ClosePicker : MenuEditorIntent
+    data object OpenGrid : MenuEditorIntent
+    data object BackFromPicker : MenuEditorIntent
+    data object FinishMenuAddition : MenuEditorIntent
     data object ReloadApps : MenuEditorIntent
     data class SearchApps(val query: String) : MenuEditorIntent
     data class PickApp(val packageName: String) : MenuEditorIntent
@@ -100,12 +102,14 @@ class MenuEditorViewModel(
         val current = state.value
         when (intent) {
             MenuEditorIntent.OpenApps -> openPicker(MenuPicker.Apps, current)
-            MenuEditorIntent.OpenSpecials -> openPicker(MenuPicker.Specials, current)
-            MenuEditorIntent.ClosePicker -> {
+            MenuEditorIntent.OpenGrid -> openPicker(MenuPicker.Grid, current)
+            MenuEditorIntent.BackFromPicker, MenuEditorIntent.FinishMenuAddition -> {
+                if (current.saving) return
                 searchJob?.cancel()
                 mutableState.update {
                     it.copy(
-                        picker = MenuPicker.None,
+                        picker = if (intent == MenuEditorIntent.BackFromPicker && it.picker == MenuPicker.Apps)
+                            MenuPicker.Grid else MenuPicker.None,
                         query = "",
                         visibleApps = emptyList(),
                         editResult = null,
@@ -124,7 +128,7 @@ class MenuEditorViewModel(
                 save(MenuEdit.Add("app:${intent.packageName}"))
             }
             is MenuEditorIntent.PickSpecial ->
-                if (current.picker == MenuPicker.Specials && intent.id in menuSpecialIds) save(MenuEdit.Add(intent.id))
+                if (current.picker == MenuPicker.Grid && intent.id in menuSpecialIds) save(MenuEdit.Add(intent.id))
             is MenuEditorIntent.RemoveAt -> if (current.picker == MenuPicker.None) {
                 save(MenuEdit.RemoveAt(intent.index, intent.expectedRaw))
             }
@@ -177,7 +181,8 @@ class MenuEditorViewModel(
     suspend fun icon(packageName: String) = catalog.icon(packageName)
 
     private fun openPicker(picker: MenuPicker, current: MenuEditorState) {
-        if (current.loadingMenu || current.saving || current.picker != MenuPicker.None) return
+        val previous = if (picker == MenuPicker.Apps) MenuPicker.Grid else MenuPicker.None
+        if (!current.canAdd || current.picker != previous) return
         mutableState.update {
             it.copy(picker = picker, query = "", editResult = null, editFailed = false)
         }

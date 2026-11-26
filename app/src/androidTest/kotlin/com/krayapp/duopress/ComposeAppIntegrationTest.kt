@@ -17,6 +17,9 @@ import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsSelected
+import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.hasSetTextAction
+import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.hasText
@@ -38,6 +41,7 @@ import com.krayapp.duopress.platform.PermissionSendGate
 import com.krayapp.duopress.platform.ShortcutControl
 import com.krayapp.duopress.platform.ShortcutEntry
 import com.krayapp.duopress.platform.ShortcutGateway
+import com.krayapp.duopress.platform.ShortcutKind
 import com.krayapp.duopress.platform.ShortcutPermissionStart
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.CountDownLatch
@@ -424,26 +428,61 @@ class ComposeAppIntegrationTest {
     }
 
     @Test
+    fun menuShortcutAfterRotationAddsOnceAndKeepsPrimaryAction() {
+        val initialMenu = PrefsHelper.getMenuItemsJson(context)
+        try {
+            PrefsHelper.setMenuItemsJson(context, "[]")
+            val owner = "com.android.settings"
+            val gateway = object : ShortcutGateway {
+                override fun status() = ShizukuShortcuts.Status.OK
+                override fun canRequestPermission() = false
+                override suspend fun shortcuts(packageName: String) =
+                    listOf(ShortcutEntry(packageName, "home", "Shortcut for menu", ShortcutKind.Dynamic, 0))
+            }
+            MainActivity.dependenciesOverride = { AppDependencies(it, shortcuts = gateway, shortcutControl = FakeShizuku()) }
+            launch()
+            compose.onNode(text(R.string.card_menu_title)).performScrollTo().performClick()
+            val plus = hasContentDescription(context.getString(R.string.editor_add_action))
+            compose.onNode(plus).performClick()
+            compose.onNode(text(R.string.name_camera)).performClick()
+            compose.onNode(plus).performClick()
+            compose.onNode(text(R.string.menu_item_added) and text(R.string.name_camera)).assertIsNotEnabled()
+            compose.onNode(text(R.string.name_shortcuts)).performClick()
+            scenario.recreate()
+            compose.onNode(hasSetTextAction()).performTextInput(owner)
+            compose.waitUntil(5_000) { compose.onAllNodes(hasText(owner)).fetchSemanticsNodes().any { !it.config.contains(SemanticsActions.SetText) } }
+            compose.onNode(hasText(owner) and hasSetTextAction().not()).performClick()
+            val pick = checkNotNull(compose.onNode(hasText("Shortcut for menu")).fetchSemanticsNode().config[SemanticsActions.OnClick].action)
+            compose.runOnIdle { pick(); pick() }
+            compose.onNode(heading(R.string.editor_menu_title)).assertIsDisplayed()
+            compose.onNode(hasText("Shortcut for menu")).assertIsDisplayed()
+            assertEquals(originalTarget, prefs.getString("target_package", null))
+            val array = org.json.JSONArray(PrefsHelper.getMenuItemsJson(context))
+            assertEquals(2, array.length())
+            assertEquals("shortcut:$owner:home:Shortcut+for+menu", array.getString(1))
+        } finally {
+            if (initialMenu == null) prefs.edit().remove("menu_items_json").commit()
+            else PrefsHelper.setMenuItemsJson(context, initialMenu)
+        }
+    }
+
+    @Test
     fun editorBackFirstClosesEmbeddedPickerAndPreviewOpensRealMenu() {
         launch()
         compose.onNode(text(R.string.card_menu_title)).performScrollTo().performClick()
         compose.onNode(heading(R.string.editor_menu_title)).assertIsDisplayed()
-        scrollEditorTo(R.string.editor_add_app)
-        compose.onNode(text(R.string.editor_add_app)).performClick()
-        compose.onNode(heading(R.string.editor_add_app)).assertIsDisplayed()
+        compose.onNode(hasContentDescription(context.getString(R.string.editor_add_action))).performClick()
+        compose.onNode(text(R.string.picker_section_apps)).performClick()
+        instrumentation.sendKeyDownUpSync(KeyEvent.KEYCODE_BACK)
+        compose.onNode(text(R.string.name_shortcuts)).performClick()
+        compose.onNode(heading(R.string.shortcut_picker_title)).assertIsDisplayed()
         clickBack()
-        compose.onNode(heading(R.string.editor_add_app)).assertDoesNotExist()
-        compose.onNode(heading(R.string.editor_menu_title)).assertIsDisplayed()
-        scrollEditorTo(R.string.editor_add_action)
-        compose.onNode(text(R.string.editor_add_action)).performClick()
-        compose.onNode(heading(R.string.editor_add_action)).assertIsDisplayed()
-        systemBack()
-        compose.onNode(heading(R.string.editor_add_action)).assertDoesNotExist()
+        compose.onNode(text(R.string.picker_section_apps)).assertIsDisplayed()
+        instrumentation.sendKeyDownUpSync(KeyEvent.KEYCODE_BACK)
         compose.onNode(heading(R.string.editor_menu_title)).assertIsDisplayed()
 
         val intents = captureIntents { null } doWhile {
-            scrollEditorTo(R.string.btn_menu_preview)
-            compose.onNode(text(R.string.btn_menu_preview)).performClick()
+            compose.onNode(hasContentDescription(context.getString(R.string.btn_menu_preview))).performClick()
             awaitText(R.string.menu_subtitle)
             instrumentation.sendKeyDownUpSync(KeyEvent.KEYCODE_BACK)
             compose.waitUntil(5_000) { scenario.state == Lifecycle.State.RESUMED }

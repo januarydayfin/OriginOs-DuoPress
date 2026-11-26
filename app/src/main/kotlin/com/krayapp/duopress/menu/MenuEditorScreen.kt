@@ -1,33 +1,32 @@
 package com.krayapp.duopress.menu
 
-import androidx.activity.compose.BackHandler
 import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.material3.Button
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
@@ -35,9 +34,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.krayapp.duopress.PrefsHelper
 import com.krayapp.duopress.R
-import com.krayapp.duopress.picker.AppSearchList
 import com.krayapp.duopress.picker.PickerMessage
-import com.krayapp.duopress.picker.PickerSearchField
 import com.krayapp.duopress.ui.common.AppIcon
 import com.krayapp.duopress.ui.theme.AppTheme
 
@@ -55,41 +52,19 @@ fun MenuEditorScreen(
     onIntent: (MenuEditorIntent) -> Unit,
     modifier: Modifier = Modifier,
     loadIcon: suspend (String) -> ImageBitmap? = { null },
+    showDialogs: Boolean = true,
+    onOpenShortcuts: () -> Unit = {},
 ) {
-    BackHandler(enabled = state.picker != MenuPicker.None) { onIntent(MenuEditorIntent.ClosePicker) }
-    when (state.picker) {
-        MenuPicker.None -> EditorRows(state, onIntent, modifier, loadIcon)
-        MenuPicker.Specials -> LazyColumn(modifier.fillMaxSize()) {
-            item { EditorHeading(stringResource(R.string.editor_add_action)) }
-            item { EditorFeedback(state) }
-            items(menuSpecialIds, key = { it }) { id ->
-                ListItem(
-                    headlineContent = { Text(stringResource(requireNotNull(menuSpecialLabel(id)))) },
-                    leadingContent = { Icon(painterResource(menuItemIcon(id)), contentDescription = null) },
-                    modifier = Modifier.clickable(enabled = !state.saving, role = Role.Button) {
-                        onIntent(MenuEditorIntent.PickSpecial(id))
-                    },
-                )
-            }
+    Box(modifier.fillMaxSize()) {
+        EditorRows(state, onIntent, Modifier, loadIcon)
+        if (state.canAdd) FloatingActionButton(
+            onClick = { onIntent(MenuEditorIntent.OpenGrid) },
+            modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp),
+        ) {
+            Icon(Icons.Default.Add, stringResource(R.string.editor_add_action))
         }
-        MenuPicker.Apps -> Column(modifier.fillMaxSize().imePadding()) {
-            EditorHeading(stringResource(R.string.editor_add_app))
-            PickerSearchField(state.query, stringResource(R.string.picker_search_hint)) {
-                onIntent(MenuEditorIntent.SearchApps(it))
-            }
-            EditorFeedback(state)
-            when {
-                state.loadingApps -> PickerMessage(stringResource(R.string.picker_loading_apps))
-                state.appsFailed -> PickerMessage(stringResource(R.string.picker_apps_failed), onRetry = {
-                    onIntent(MenuEditorIntent.ReloadApps)
-                })
-                else -> AppSearchList(
-                    entries = state.visibleApps,
-                    onPicked = { onIntent(MenuEditorIntent.PickApp(it)) },
-                    modifier = Modifier.weight(1f),
-                    loadIcon = loadIcon,
-                )
-            }
+        if (showDialogs && state.picker != MenuPicker.None) {
+            MenuAddDialog(state, onIntent, loadIcon, onOpenShortcuts)
         }
     }
 }
@@ -102,9 +77,14 @@ private fun EditorRows(
     loadIcon: suspend (String) -> ImageBitmap?,
 ) {
     val renderedMenu = state.menuItems
-    LazyColumn(modifier.fillMaxSize(), contentPadding = PaddingValues(vertical = 8.dp)) {
+    LazyColumn(modifier.fillMaxSize(), contentPadding = PaddingValues(top = 8.dp, bottom = 92.dp)) {
         item {
-            PickerMessage(stringResource(R.string.editor_hint))
+            Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween) {
+                Text(stringResource(R.string.editor_order))
+                Text(stringResource(R.string.editor_count, renderedMenu.size, PrefsHelper.MAX_MENU_ITEMS))
+            }
+            if (renderedMenu.size >= PrefsHelper.MAX_MENU_ITEMS) PickerMessage(stringResource(R.string.editor_menu_full))
             EditorFeedback(state)
         }
         if (!state.loadingMenu && renderedMenu.isEmpty()) {
@@ -150,26 +130,6 @@ private fun EditorRows(
                 },
             )
         }
-        item {
-            val canEdit = !state.saving && !state.loadingMenu
-            Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
-                Button(
-                    onClick = { onIntent(MenuEditorIntent.OpenApps) },
-                    enabled = canEdit,
-                    modifier = Modifier.fillMaxWidth(),
-                ) { Text(stringResource(R.string.editor_add_app)) }
-                OutlinedButton(
-                    onClick = { onIntent(MenuEditorIntent.OpenSpecials) },
-                    enabled = canEdit,
-                    modifier = Modifier.fillMaxWidth(),
-                ) { Text(stringResource(R.string.editor_add_action)) }
-                OutlinedButton(
-                    onClick = { onIntent(MenuEditorIntent.Preview) },
-                    enabled = state.previewEnabled,
-                    modifier = Modifier.fillMaxWidth(),
-                ) { Text(stringResource(R.string.btn_menu_preview)) }
-            }
-        }
     }
 }
 
@@ -190,7 +150,7 @@ private fun EditorHeading(title: String) {
 }
 
 @Composable
-private fun EditorFeedback(state: MenuEditorState) {
+internal fun EditorFeedback(state: MenuEditorState) {
     val message = when {
         state.editFailed -> R.string.editor_save_failed
         state.editResult == MenuEditResult.Duplicate -> R.string.editor_already_in_menu
@@ -202,7 +162,7 @@ private fun EditorFeedback(state: MenuEditorState) {
 }
 
 @StringRes
-private fun menuSpecialLabel(id: String): Int? = when (id) {
+internal fun menuSpecialLabel(id: String): Int? = when (id) {
     PrefsHelper.SPECIAL_TORCH -> R.string.name_torch
     PrefsHelper.SPECIAL_CAMERA -> R.string.name_camera
     PrefsHelper.SPECIAL_VPN -> R.string.name_vpn
