@@ -5,6 +5,19 @@ import org.junit.Test
 
 class MenuRulesTest {
     @Test
+    fun blankShortcutLabelUsesId() {
+        assertEquals("home", menuShortcutLabel("shortcut:pkg:home:"))
+        assertEquals("Home", menuShortcutLabel("shortcut:pkg:home:Home"))
+    }
+    @Test
+    fun renamedShortcutIsDuplicate() {
+        val raw = listOf("shortcut:pkg:home:Old")
+        assertEquals(MenuEditResult.Duplicate to raw, edit(raw, MenuEdit.Add("shortcut:pkg:home:New")))
+        val other = "shortcut:other:home:Old"
+        assertEquals(MenuEditResult.Applied to (raw + other), edit(raw, MenuEdit.Add(other)))
+    }
+
+    @Test
     fun visibleMenuDropsRecursiveDuplicatesAndStopsAt16() {
         val apps = (1..20).map { "app:org.example.app$it" }
         val raw = listOf(" special:menu ", " \t", " special:camera ", "special:camera", "\u00a0") + apps

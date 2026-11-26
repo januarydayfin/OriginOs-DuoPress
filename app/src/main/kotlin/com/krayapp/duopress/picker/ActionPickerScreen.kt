@@ -66,10 +66,12 @@ fun AppSearchList(
     onPicked: (String) -> Unit,
     modifier: Modifier = Modifier,
     loadIcon: suspend (String) -> ImageBitmap? = { null },
+    alreadyAdded: (String) -> Boolean = { false },
+    enabled: Boolean = true,
 ) {
     LazyColumn(modifier = modifier) {
         if (entries.isEmpty()) item("empty") { PickerMessage(stringResource(R.string.picker_no_apps)) }
-        appSearchItems(entries, onPicked, loadIcon)
+        appSearchItems(entries, onPicked, loadIcon, enabled = enabled, alreadyAdded = alreadyAdded)
     }
 }
 
@@ -169,13 +171,15 @@ private fun LazyListScope.appSearchItems(
     loadIcon: suspend (String) -> ImageBitmap?,
     selectedPackage: String? = null,
     enabled: Boolean = true,
+    alreadyAdded: (String) -> Boolean = { false },
 ) {
     items(entries, key = { "app:${it.packageName}" }, contentType = { "app" }) { entry ->
+        val added = alreadyAdded(entry.packageName)
         PickerChoice(
             label = entry.label,
-            detail = entry.packageName.takeUnless { it == entry.label },
+            detail = if (added) stringResource(R.string.menu_item_added) else entry.packageName.takeUnless { it == entry.label },
             selected = selectedPackage == entry.packageName,
-            enabled = enabled,
+            enabled = enabled && !added,
             onClick = { onPicked(entry.packageName) },
             leading = { AppIcon(entry.packageName, loadIcon = { loadIcon(entry.packageName) }) },
         )

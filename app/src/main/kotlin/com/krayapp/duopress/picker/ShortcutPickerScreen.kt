@@ -30,6 +30,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.krayapp.duopress.R
 import com.krayapp.duopress.ShortcutAction
+import com.krayapp.duopress.menu.MenuEditResult
+import com.krayapp.duopress.menu.sameMenuItem
 import com.krayapp.duopress.platform.AppEntry
 import com.krayapp.duopress.platform.ShortcutEntry
 import com.krayapp.duopress.platform.ShortcutKind
@@ -67,7 +69,11 @@ private fun ShortcutPickerContent(
                 }
             }
             if (state.selection == PickerSelection.Failed) item("saveError") {
-                PickerMessage(stringResource(R.string.picker_save_failed))
+                PickerMessage(stringResource(when (state.menuEditResult) {
+                    MenuEditResult.Full -> R.string.editor_menu_full
+                    MenuEditResult.Duplicate -> R.string.editor_already_in_menu
+                    else -> R.string.picker_save_failed
+                }))
             }
             when {
                 state.loadingApps -> item("loading") { PickerMessage(stringResource(R.string.picker_loading_apps)) }
@@ -87,7 +93,7 @@ private fun ShortcutPickerContent(
                         ExpandableApp(row, loadAppIcon, onToggle = { onIntent(ShortcutPickerIntent.ToggleApp(packageName)) })
                     }
                     shortcutChildren(
-                        row, state.query, state.selectedShortcut, loadShortcutIcon, onIntent,
+                        row, state.query, state.selectedShortcut, state.menuItems, loadShortcutIcon, onIntent,
                         enabled = state.selection != PickerSelection.Saving && !state.selectionComplete,
                     )
                 }
@@ -164,6 +170,7 @@ private fun LazyListScope.shortcutChildren(
     row: ShortcutAppRow,
     query: String,
     current: ShortcutAction?,
+    menuItems: List<String>,
     loadIcon: suspend (ShortcutEntry) -> ImageBitmap?,
     onIntent: (ShortcutPickerIntent) -> Unit,
     enabled: Boolean,
@@ -187,9 +194,11 @@ private fun LazyListScope.shortcutChildren(
                 PickerMessage(stringResource(R.string.shortcut_picker_no_shortcuts), indent)
             }
             items(load.entries, key = { "shortcut:$packageName:${it.id}" }, contentType = { "shortcut" }) { shortcut ->
+                val added = menuItems.isNotEmpty() && ShortcutAction(packageName, shortcut.id, shortcut.label)
+                    .toActionId().let { id -> menuItems.any { sameMenuItem(it, id) } }
                 PickerChoice(
-                    label = shortcut.label,
-                    detail = stringResource(
+                    label = shortcut.label.ifBlank { shortcut.id },
+                    detail = if (added) stringResource(R.string.menu_item_added) else stringResource(
                         when (shortcut.kind) {
                             ShortcutKind.Manifest -> R.string.shortcut_type_manifest
                             ShortcutKind.Dynamic -> R.string.shortcut_type_dynamic
@@ -197,7 +206,7 @@ private fun LazyListScope.shortcutChildren(
                         },
                     ),
                     selected = current?.packageName == packageName && current.shortcutId == shortcut.id,
-                    enabled = enabled,
+                    enabled = enabled && !added,
                     onClick = { onIntent(ShortcutPickerIntent.PickShortcut(packageName, shortcut.id, query)) },
                     leading = { AppIcon(shortcut, loadIcon = { loadIcon(shortcut) }) },
                     modifier = indent,

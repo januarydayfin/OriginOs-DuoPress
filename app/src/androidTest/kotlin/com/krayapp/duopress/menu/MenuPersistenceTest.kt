@@ -1,6 +1,8 @@
 package com.krayapp.duopress.menu
 
 import android.content.Context
+import android.content.ContextWrapper
+import android.content.SharedPreferences
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.krayapp.duopress.PrefsHelper
@@ -16,6 +18,36 @@ import java.util.concurrent.TimeUnit
 @RunWith(AndroidJUnit4::class)
 class MenuPersistenceTest {
     private val context = InstrumentationRegistry.getInstrumentation().targetContext
+
+    @Test
+    fun failedDiskCommitDoesNotPublishTheSixteenthItem() = withMenu(
+        org.json.JSONArray((1..15).map { "app:$it" }).toString()
+    ) { _, original ->
+        val underlying = PrefsHelper.preferences(context)
+        val broken = object : SharedPreferences by underlying {
+            override fun edit(): SharedPreferences.Editor {
+                val actual = underlying.edit()
+                return object : SharedPreferences.Editor by actual {
+                    override fun putString(key: String, value: String?): SharedPreferences.Editor {
+                        actual.putString(key, value)
+                        return this
+                    }
+                    override fun commit(): Boolean {
+                        actual.apply() // Android updates the in-memory map even on failed disk writes.
+                        return false
+                    }
+                }
+            }
+        }
+        val wrapped = object : ContextWrapper(context) {
+            override fun getApplicationContext(): Context = this
+            override fun getSharedPreferences(name: String, mode: Int) = broken
+        }
+        val store = SharedPrefsSettingsRepository(wrapped)
+        assertTrue(runCatching { store.editMenu(MenuEdit.Add("app:last")) }.exceptionOrNull() is java.io.IOException)
+        assertEquals(original, PrefsHelper.getMenuItemsJson(context))
+        assertEquals(15, store.snapshot().menuItems.size)
+    }
 
     @Test
     fun readsAndNoOpsDoNotRewriteLegacyJson() = withMenu(

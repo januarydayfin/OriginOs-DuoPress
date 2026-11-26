@@ -80,8 +80,9 @@ internal class PlatformRequestHost(
                         .putExtra("lb_from", "2"),
                 ).asLaunchOutcome(),
             )
-            PlatformCommand.PreviewMenu -> delivery.finish(
-                start(Intent(activity, MenuActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION))
+            is PlatformCommand.PreviewMenu -> delivery.finish(
+                start(Intent(activity, MenuActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION)
+                    .putStringArrayListExtra(MenuActivity.EXTRA_PREVIEW_ITEMS, ArrayList(command.items)))
                     .asLaunchOutcome(),
             )
             is PlatformCommand.PreviewVibration -> delivery.finish(

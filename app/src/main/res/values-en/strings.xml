@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="menu_item_added">Already in menu</string>
     <string name="app_name">DuoPress</string>
     <string name="swipe_activity_label">DuoPress</string>
 
@@ -109,11 +110,14 @@
     <string name="menu_item_vpn">VPN: %1$s</string>
 
     <!-- Menu editor -->
-    <string name="editor_menu_title">Edit menu</string>
+    <string name="editor_menu_title">Action menu</string>
+    <string name="editor_order">Menu order</string>
+    <string name="editor_drag">Drag %1$s</string>
+    <string name="editor_count">%1$d / %2$d</string>
     <string name="editor_hint">Items launch with one tap. Arrows reorder, the cross deletes. Changes are saved instantly.</string>
-    <string name="editor_add_action">Add action…</string>
+    <string name="editor_add_action">Add to menu</string>
     <string name="editor_add_app">Add app…</string>
-    <string name="editor_empty">Menu is empty</string>
+    <string name="editor_empty">Tap + to add an action</string>
     <string name="editor_already_in_menu">Already in the menu</string>
     <string name="editor_menu_full">The menu holds up to 16 items</string>
     <string name="editor_blank_item">Blank item</string>

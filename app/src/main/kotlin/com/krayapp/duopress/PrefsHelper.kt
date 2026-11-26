@@ -177,6 +177,16 @@ open class PrefsHelper {
             preferences(context).edit().putString(KEY_MENU_ITEMS, json).apply()
         }
 
+        /** Синхронная запись из фонового редактора; при ошибке возвращаем прежний снимок в память. */
+        internal fun commitMenuItems(context: Context, items: JSONArray) {
+            val prefs = preferences(context)
+            val previous = prefs.getString(KEY_MENU_ITEMS, null)
+            if (!prefs.edit().putString(KEY_MENU_ITEMS, items.toString()).commit()) {
+                prefs.edit().putString(KEY_MENU_ITEMS, previous).apply()
+                throw java.io.IOException("Could not persist menu")
+            }
+        }
+
         /** Читает элементы меню или подставляет исходные четыре пункта, не обновляя настройки. */
         @JvmStatic
         fun getMenuItems(context: Context?): JSONArray {

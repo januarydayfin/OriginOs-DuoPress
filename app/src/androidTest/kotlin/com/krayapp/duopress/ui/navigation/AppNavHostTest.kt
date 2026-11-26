@@ -241,6 +241,8 @@ private fun TestScreen(
             }
             AppRoute.Diagnostics -> Text("Diagnostics screen")
             AppRoute.MenuEditor -> Text("Menu editor screen")
+            AppRoute.MenuShortcutPicker -> Text("Menu shortcut picker")
+            AppRoute.MenuAppPicker -> Text("Menu app picker")
             AppRoute.Lockscreen -> {
                 Text("Lockscreen screen")
                 Button(onClick = onLockscreenEdit) { Text("Toggle lockscreen") }
