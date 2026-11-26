@@ -529,26 +529,12 @@ class ComposeAppIntegrationTest {
     }
 
     @Test
-    fun assistantSettingsTryLegacyFallbacksInOrder() {
+    fun settingsKeepVibrationAndVpnWithoutAssistantSection() {
         launch()
         tab(R.string.nav_settings).performClick()
-        val intents = captureIntents { throw ActivityNotFoundException("Test surface") } doWhile {
-            compose.onNode(text(R.string.btn_assistant)).performScrollTo().performClick()
-            compose.waitUntil(5_000) {
-                compose.onAllNodes(text(R.string.settings_platform_failed)).fetchSemanticsNodes().isNotEmpty()
-            }
-        }
-        assertEquals(
-            listOf(
-                "android.settings.VOICE_INPUT_SETTINGS",
-                "android.settings.MANAGE_DEFAULT_APPS_SETTINGS",
-                "android.settings.MANAGE_ASSISTANT",
-                "android.settings.APPLICATION_DETAILS_SETTINGS",
-            ),
-            intents.map(Intent::getAction),
-        )
-        assertTrue(intents.all { it.flags and Intent.FLAG_ACTIVITY_NEW_TASK != 0 })
-        assertEquals("package:com.google.android.googlequicksearchbox", intents.last().dataString)
+        awaitText(R.string.card_vibration_title)
+        compose.onNode(text(R.string.card_vpn_title)).performScrollTo().assertIsDisplayed()
+        compose.onNode(hasText("Default assistant") or hasText("Ассистент по умолчанию")).assertDoesNotExist()
     }
 
     @Test

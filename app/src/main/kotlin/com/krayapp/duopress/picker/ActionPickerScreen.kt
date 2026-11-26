@@ -287,7 +287,6 @@ private val presetTileRows = listOf(
     PresetRow(ActionPreset.Camera, R.string.name_camera, R.drawable.ic_action_camera),
     PresetRow(ActionPreset.Vpn, R.string.name_vpn, R.drawable.ic_action_vpn),
     PresetRow(ActionPreset.Menu, R.string.name_menu, R.drawable.ic_action_menu),
-    PresetRow(ActionPreset.CircleToSearch, R.string.name_cts, R.drawable.ic_action_search),
 ).chunked(2)
 
 @Preview(showBackground = true)

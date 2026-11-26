@@ -28,7 +28,6 @@ enum class ActionPreset(val id: String) {
     Torch(PrefsHelper.SPECIAL_TORCH),
     Camera(PrefsHelper.SPECIAL_CAMERA),
     Vpn(PrefsHelper.SPECIAL_VPN),
-    CircleToSearch(PrefsHelper.SPECIAL_CIRCLE_TO_SEARCH),
     Menu(PrefsHelper.SPECIAL_MENU),
 }
 

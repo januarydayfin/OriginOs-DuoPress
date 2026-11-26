@@ -74,7 +74,6 @@ internal class PlatformRequestHost(
                 ).asLaunchOutcome(),
             )
             is PlatformCommand.OpenAppDetails -> delivery.finish(start(appDetails(command.packageName)).asLaunchOutcome())
-            PlatformCommand.OpenAssistantSettings -> delivery.finish(openAssistantSettings().asLaunchOutcome())
             PlatformCommand.TestAction -> delivery.finish(
                 start(
                     Intent(activity, SwipeEntryActivity::class.java)
@@ -95,16 +94,6 @@ internal class PlatformRequestHost(
             )
             PlatformCommand.RequestShortcutPermission -> pending.requestPermission(delivery)
         }
-    }
-
-    private fun openAssistantSettings(): Boolean {
-        val actions = listOf(
-            "android.settings.VOICE_INPUT_SETTINGS",
-            "android.settings.MANAGE_DEFAULT_APPS_SETTINGS",
-            "android.settings.MANAGE_ASSISTANT",
-        )
-        return actions.any { start(Intent(it).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) } ||
-            start(appDetails("com.google.android.googlequicksearchbox").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
     }
 
     private fun start(intent: Intent): Boolean = platformOrNull { activity.startActivity(intent) } != null

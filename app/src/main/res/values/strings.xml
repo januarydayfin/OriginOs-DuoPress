@@ -49,7 +49,7 @@
     <string name="card_action_title">Действие двойного нажатия</string>
     <string name="main_action_label">Что запускать</string>
     <string name="btn_change">Изменить</string>
-    <string name="card_action_hint">Приложение, ярлык приложения или одно из спец-действий: фонарик, камера, VPN, Circle to Search или меню действий. Для ярлыков нужен Android 11+ и Shizuku, установленный и запущенный через ADB (без root). Circle to Search работает как в MiCTS — через VoiceInteractionService, без root и accessibility.</string>
+    <string name="card_action_hint">Приложение, ярлык приложения или одно из спец-действий: фонарик, камера, VPN или меню действий. Для ярлыков нужны Android 11+ и Shizuku API 13+, запущенный через ADB (без root).</string>
     <string name="action_none_selected">Не выбрано</string>
     <string name="subtitle_not_set">Не задано</string>
 
@@ -59,13 +59,12 @@
     <string name="preset_torch">Фонарик</string>
     <string name="preset_camera">Камера</string>
     <string name="preset_vpn">VPN</string>
-    <string name="preset_cts">Circle to Search</string>
     <string name="preset_menu">Меню</string>
 
     <!-- Имена спец-действий -->
     <string name="name_torch">Фонарик</string>
     <string name="name_camera">Камера</string>
-    <string name="name_cts">Circle to Search</string>
+    <string name="action_circle_unavailable">Circle to Search — недоступно</string>
     <string name="name_vpn">Переключить VPN</string>
     <string name="name_vpn_short">VPN: %1$s</string>
     <string name="name_menu">Меню действий</string>
@@ -110,7 +109,6 @@
     <string name="menu_empty">Меню пустое. Добавьте пункты в настройках приложения.</string>
     <string name="menu_item_torch">Фонарик</string>
     <string name="menu_item_camera">Камера</string>
-    <string name="menu_item_cts">Circle to Search</string>
     <string name="menu_item_vpn">VPN: %1$s</string>
 
     <!-- Редактор меню -->
@@ -191,16 +189,6 @@
     <string name="btn_appinfo">Сведения о приложении</string>
     <string name="btn_appinfo_hint">Открывает системные сведения об обработчике или об этом приложении. Можно ли сбросить назначение по умолчанию, зависит от прошивки.</string>
 
-    <!-- Ассистент -->
-    <string name="card_assistant_title">Ассистент по умолчанию</string>
-    <string name="assistant_hint">Circle to Search открывает ассистента, выбранного в системе. Чтобы Circle to Search запускал Gemini, включите его в приложении Google: профиль → Настройки → Gemini.</string>
-    <string name="assistant_ok">✓ Ассистент: %1$s. Circle to Search откроет Gemini.</string>
-    <string name="assistant_google">ℹ Ассистент: %1$s. Circle to Search откроет Google. Хотите Gemini — переключите кнопкой ниже.</string>
-    <string name="assistant_warn">⚠ Ассистент: %1$s. Нажмите кнопку ниже и выберите Google или Gemini.</string>
-    <string name="assistant_none">не задан</string>
-    <string name="assistant_read_error">ошибка чтения</string>
-    <string name="btn_assistant">Изменить ассистента</string>
-
     <!-- Журнал -->
     <string name="card_log_title">Журнал последнего вызова</string>
     <string name="card_log_hint">Action и extras обрезаются до 100 символов, весь лог — до 1000. Это защищает приложение от раздувания произвольными интентами.</string>
@@ -236,11 +224,6 @@
     <string name="log_camera_ok">Камера запущена</string>
 
     <string name="log_camera_ok_secure">Камера запущена (secure-режим для экрана блокировки)</string>    <string name="log_camera_error">Ошибка запуска камеры: %1$s</string>
-    <string name="log_cts_no_service">Circle to Search: сервис voiceinteraction недоступен</string>
-    <string name="log_cts_no_interface">Circle to Search: IVoiceInteractionManagerService недоступен</string>
-    <string name="log_cts_ok">Circle to Search: сессия запущена. Ассистент: %1$s</string>
-    <string name="log_cts_false">Circle to Search: система вернула false. Ассистент: %1$s</string>
-    <string name="log_cts_error">Circle to Search не сработал: %1$s</string>
     <string name="log_wallet_ok">Запущен ключ Vivo Wallet (NewSwipeActivity)</string>
     <string name="log_shortcut_ok">Ярлык запущен: %1$s</string>
     <string name="log_shortcut_failed">Ошибка запуска ярлыка: %1$s</string>

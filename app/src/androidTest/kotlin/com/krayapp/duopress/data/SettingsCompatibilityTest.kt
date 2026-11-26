@@ -1,11 +1,13 @@
 package com.krayapp.duopress.data
 
 import android.content.Context
+import android.content.ContextWrapper
 import android.content.Intent
 import android.content.SharedPreferences
 import android.content.res.Configuration
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import com.krayapp.duopress.ActionRunner
 import com.krayapp.duopress.PrefsHelper
 import com.krayapp.duopress.actions.LegacyActionLabelResolver
 import kotlinx.coroutines.flow.onEach
@@ -105,8 +107,8 @@ class SettingsCompatibilityTest {
     }
 
     @Test
-    fun missingOrBadMenuGetsOriginalFourDefaults() = runBlocking {
-        val expected = listOf("special:torch", "special:camera", "special:vpn", "special:circle_to_search")
+    fun missingOrBadMenuGetsSupportedDefaultsWithoutWriting() = runBlocking {
+        val expected = listOf("special:torch", "special:camera", "special:vpn")
         withLegacyPreferences("menu_items_json") {
             val repository = SharedPrefsSettingsRepository(context)
             for (raw in listOf(null, " \t", """{"not":"an array"}""")) {
@@ -115,6 +117,31 @@ class SettingsCompatibilityTest {
                 assertEquals(raw, getString("menu_items_json", null))
                 assertEquals(raw != null, contains("menu_items_json"))
             }
+        }
+    }
+
+    @Test
+    fun legacyCircleShowsUnavailableWithoutMutatingSettings() = runBlocking {
+        val id = "special:circle_to_search"
+        val rawMenu = """[ "special:torch", "$id", "shortcut:pkg:test:Test" ]"""
+        val noLaunch = context.createConfigurationContext(Configuration().apply {
+            setLocale(Locale.ENGLISH)
+        }).let { english ->
+            object : ContextWrapper(english) {
+                override fun startActivity(intent: Intent) = error("A retired action must not launch $intent")
+            }
+        }
+        withLegacyPreferences("target_package", "menu_items_json", "last_trigger_log") {
+            assertTrue(edit().putString("target_package", id).putString("menu_items_json", rawMenu).commit())
+            val snapshot = SharedPrefsSettingsRepository(context).snapshot()
+            assertEquals(id, snapshot.targetId)
+            assertEquals(listOf("special:torch", id, "shortcut:pkg:test:Test"), snapshot.menuItems)
+            val status = "Circle to Search — unavailable"
+            assertEquals(status, LegacyActionLabelResolver(noLaunch).resolve(id, "auto"))
+            assertEquals(status, ActionRunner.runAction(noLaunch, id, null))
+            assertTrue(PrefsHelper.getLastTriggerLog(context).orEmpty().contains("Status: $status"))
+            assertEquals(id, getString("target_package", null))
+            assertEquals(rawMenu, getString("menu_items_json", null))
         }
     }
 

@@ -6,11 +6,7 @@ import android.content.Intent
 import android.content.pm.ResolveInfo
 import android.hardware.camera2.CameraManager
 import android.os.Build
-import android.os.Bundle
-import android.os.IBinder
-import android.os.SystemClock
 import android.provider.MediaStore
-import android.provider.Settings
 import java.lang.reflect.InvocationTargetException
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
@@ -20,8 +16,6 @@ import kotlinx.coroutines.withContext
 /** Общий исполнитель действий для системной точки входа Vivo и меню. */
 class ActionRunner private constructor() {
     companion object {
-        private const val OMNI_ENTRY_POINT_APP_LAUNCH = 1
-
         /** Убирает только крайние символы U+0000..U+0020, как Java String.trim(). */
         @JvmStatic
         fun normalize(id: String?): String? = id?.trim { it <= ' ' }?.takeIf(String::isNotEmpty)
@@ -112,7 +106,11 @@ class ActionRunner private constructor() {
         private fun runSpecial(context: Context, id: String, sourceIntent: Intent?): String = when (id) {
             PrefsHelper.SPECIAL_TORCH -> toggleFlashlight(context, sourceIntent, id)
             PrefsHelper.SPECIAL_CAMERA -> launchCamera(context, sourceIntent, id)
-            PrefsHelper.SPECIAL_CIRCLE_TO_SEARCH -> triggerCircleToSearch(context, sourceIntent, id)
+            PrefsHelper.SPECIAL_CIRCLE_TO_SEARCH -> {
+                val status = context.getString(R.string.action_circle_unavailable)
+                PrefsHelper.saveTriggerLog(context, sourceIntent, id, status)
+                status
+            }
             PrefsHelper.SPECIAL_VPN -> {
                 val clientSetting = PrefsHelper.getVpnClient(context)
                 val vpnResult = VpnController.controlVpn(context, clientSetting, "toggle")
@@ -204,72 +202,6 @@ class ActionRunner private constructor() {
                 val msg = context.getString(R.string.log_camera_error, safeMsg(e))
                 PrefsHelper.saveTriggerLog(context, sourceIntent, targetPkg, msg)
                 return msg
-            }
-        }
-
-        /** Запускает Circle to Search прежним механизмом MiCTS. */
-        @JvmStatic
-        @Suppress("INVISIBLE_REFERENCE", "INVISIBLE_MEMBER")
-        fun triggerCircleToSearch(context: Context, sourceIntent: Intent?, targetPkg: String?): String {
-            try {
-                // Адаптер остаётся package-private на JVM, как при вызове из Java.
-                HiddenApiCompat.ensureExemptions()
-
-                val bundle = Bundle()
-                bundle.putLong("invocation_time_ms", SystemClock.elapsedRealtime())
-                bundle.putInt("omni.entry_point", OMNI_ENTRY_POINT_APP_LAUNCH)
-                bundle.putBoolean("micts_trigger", true)
-
-                val serviceManagerClass = Class.forName("android.os.ServiceManager")
-                val getService = serviceManagerClass.getMethod("getService", String::class.java)
-                val visBinder = getService.invoke(null, "voiceinteraction") as IBinder?
-                if (visBinder == null) {
-                    val msg = context.getString(R.string.log_cts_no_service)
-                    PrefsHelper.saveTriggerLog(context, sourceIntent, targetPkg, msg)
-                    return msg
-                }
-
-                val iVimsClass = Class.forName("com.android.internal.app.IVoiceInteractionManagerService")
-                val stubClass = Class.forName("com.android.internal.app.IVoiceInteractionManagerService\$Stub")
-                val asInterface = stubClass.getMethod("asInterface", IBinder::class.java)
-                val vims = asInterface.invoke(null, visBinder)
-                if (vims == null) {
-                    val msg = context.getString(R.string.log_cts_no_interface)
-                    PrefsHelper.saveTriggerLog(context, sourceIntent, targetPkg, msg)
-                    return msg
-                }
-
-                // Android 14+: showSessionFromSession с invocationContext; раньше — без него.
-                val result = HiddenApiCompat.showSessionFromSession(
-                    iVimsClass, vims, bundle, Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE,
-                )
-
-                val success = result is Boolean && result
-                val assistant = getCurrentDefaultAssistant(context)
-                val msg = if (success) {
-                    context.getString(R.string.log_cts_ok, assistant)
-                } else {
-                    context.getString(R.string.log_cts_false, assistant)
-                }
-                PrefsHelper.saveTriggerLog(context, sourceIntent, targetPkg, msg)
-                return msg
-            } catch (e: Exception) {
-                val msg = context.getString(R.string.log_cts_error, safeMsg(e))
-                PrefsHelper.saveTriggerLog(context, sourceIntent, targetPkg, msg)
-                return msg
-            }
-        }
-
-        private fun getCurrentDefaultAssistant(context: Context): String {
-            try {
-                val assistant = Settings.Secure.getString(context.contentResolver, "assistant")
-                if (assistant.isNullOrEmpty()) return context.getString(R.string.assistant_none)
-                val pkg = assistant.substringBefore('/')
-                val label = getAppLabel(context, pkg)
-                if (label == null || label == pkg) return assistant
-                return "$label ($pkg)"
-            } catch (_: Exception) {
-                return context.getString(R.string.assistant_read_error)
             }
         }
 

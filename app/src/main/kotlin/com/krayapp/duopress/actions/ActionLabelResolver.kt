@@ -21,7 +21,7 @@ class LegacyActionLabelResolver(context: Context) : ActionLabelResolver {
         id.isBlank() -> resources.getString(R.string.action_none_selected)
         id == PrefsHelper.SPECIAL_TORCH -> resources.getString(R.string.name_torch)
         id == PrefsHelper.SPECIAL_CAMERA -> resources.getString(R.string.name_camera)
-        id == PrefsHelper.SPECIAL_CIRCLE_TO_SEARCH -> resources.getString(R.string.name_cts)
+        id == PrefsHelper.SPECIAL_CIRCLE_TO_SEARCH -> resources.getString(R.string.action_circle_unavailable)
         id == PrefsHelper.SPECIAL_VPN -> {
             val client = VpnController.resolveClientPackage(appContext, vpnClient)
             val name = client?.let(VpnController::clientLabel) ?: resources.getString(R.string.vpn_name_generic)

@@ -47,6 +47,15 @@ class MenuRulesTest {
     }
 
     @Test
+    fun legacyCircleCanBeRemovedButNotAdded() {
+        val id = "special:circle_to_search"
+        assertEquals(MenuEditResult.NoChange to emptyList<String>(), edit(emptyList(), MenuEdit.Add(id)))
+        val stored = listOf("special:torch", id)
+        assertEquals(stored, visibleMenuItems(stored))
+        assertEquals(MenuEditResult.Applied to listOf("special:torch"), edit(stored, MenuEdit.RemoveAt(1, stored)))
+    }
+
+    @Test
     fun movePersistsOrder() {
         val raw = listOf(" special:torch ", "", "special:menu", "special:camera", "special:camera")
         val moved = listOf("", "special:menu", "special:camera", " special:torch ", "special:camera")

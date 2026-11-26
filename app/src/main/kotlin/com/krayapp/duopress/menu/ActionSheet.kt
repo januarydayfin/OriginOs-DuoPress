@@ -217,7 +217,6 @@ internal fun menuItemIcon(id: String): Int = when (id) {
     PrefsHelper.SPECIAL_TORCH -> R.drawable.ic_action_torch
     PrefsHelper.SPECIAL_CAMERA -> R.drawable.ic_action_camera
     PrefsHelper.SPECIAL_VPN -> R.drawable.ic_action_vpn
-    PrefsHelper.SPECIAL_CIRCLE_TO_SEARCH -> R.drawable.ic_action_search
     PrefsHelper.SPECIAL_MENU -> R.drawable.ic_action_menu
     else -> R.drawable.ic_action_app
 }

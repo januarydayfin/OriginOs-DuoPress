@@ -50,7 +50,6 @@ internal val menuSpecialIds = listOf(
     PrefsHelper.SPECIAL_TORCH,
     PrefsHelper.SPECIAL_CAMERA,
     PrefsHelper.SPECIAL_VPN,
-    PrefsHelper.SPECIAL_CIRCLE_TO_SEARCH,
 )
 
 /**
@@ -76,7 +75,9 @@ internal fun <T> applyMenuEdit(
         }
         is MenuEdit.Add -> {
             val id = edit.id.legacyMenuTrim()
-            if (id.isEmpty() || id == PrefsHelper.SPECIAL_MENU) return MenuEditResult.NoChange to raw
+            if (id.isEmpty() || id == PrefsHelper.SPECIAL_MENU || id == PrefsHelper.SPECIAL_CIRCLE_TO_SEARCH) {
+                return MenuEditResult.NoChange to raw
+            }
             if (raw.any { sameMenuItem(idOf(it), id) }) return MenuEditResult.Duplicate to raw
             if (raw.size >= PrefsHelper.MAX_MENU_ITEMS) return MenuEditResult.Full to raw
             raw + itemFromId(id)

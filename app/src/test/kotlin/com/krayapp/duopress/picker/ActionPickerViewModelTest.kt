@@ -32,7 +32,7 @@ class ActionPickerViewModelTest : PickerViewModelTestFixture() {
     @Test
     fun presetsContainOnlyBuiltInSpecialActions() {
         assertEquals(
-            setOf("special:torch", "special:camera", "special:vpn", "special:circle_to_search", "special:menu"),
+            setOf("special:torch", "special:camera", "special:vpn", "special:menu"),
             ActionPreset.entries.map { it.id }.toSet(),
         )
     }
@@ -79,12 +79,12 @@ class ActionPickerViewModelTest : PickerViewModelTestFixture() {
     fun primaryPickPersistsExistingId() = runTest {
         val model = model()
         runCurrent()
-        model.onIntent(ActionPickerIntent.PickPreset(ActionPreset.CircleToSearch))
+        model.onIntent(ActionPickerIntent.PickPreset(ActionPreset.Torch))
         model.onIntent(ActionPickerIntent.PickPreset(ActionPreset.Camera))
         runCurrent()
 
-        assertEquals("special:circle_to_search", repository.saved.value.targetId)
-        assertEquals(listOf(SettingsChange.Target("special:circle_to_search")), repository.writes)
+        assertEquals("special:torch", repository.saved.value.targetId)
+        assertEquals(listOf(SettingsChange.Target("special:torch")), repository.writes)
         assertTrue(model.state.value.selectionComplete)
     }
 

@@ -31,6 +31,7 @@ open class PrefsHelper {
         const val SPECIAL_PREFIX = "special:"
         const val SPECIAL_TORCH = "special:torch"
         const val SPECIAL_CAMERA = "special:camera"
+        /** Удалённое действие: сохраняем ID для отображения старых назначений. */
         const val SPECIAL_CIRCLE_TO_SEARCH = "special:circle_to_search"
         const val SPECIAL_VPN = "special:vpn"
         const val SPECIAL_MENU = "special:menu"
@@ -187,7 +188,7 @@ open class PrefsHelper {
             }
         }
 
-        /** Читает элементы меню или подставляет исходные четыре пункта, не обновляя настройки. */
+        /** Читает элементы меню или подставляет поддерживаемые пункты, не обновляя настройки. */
         @JvmStatic
         fun getMenuItems(context: Context?): JSONArray {
             try {
@@ -200,7 +201,6 @@ open class PrefsHelper {
                 .put(SPECIAL_TORCH)
                 .put(SPECIAL_CAMERA)
                 .put(SPECIAL_VPN)
-                .put(SPECIAL_CIRCLE_TO_SEARCH)
         }
 
         @JvmStatic

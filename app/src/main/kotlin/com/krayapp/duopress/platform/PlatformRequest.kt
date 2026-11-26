@@ -14,7 +14,6 @@ sealed interface PlatformCommand {
      * @property pattern сохранённый паттерн на момент запроса.
      */
     data class PreviewVibration(val durationMs: Int, val pattern: String) : PlatformCommand
-    data object OpenAssistantSettings : PlatformCommand
     data object RequestShortcutPermission : PlatformCommand
     data object OpenShizuku : PlatformCommand
 

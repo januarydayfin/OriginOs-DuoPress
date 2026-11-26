@@ -13,7 +13,6 @@ import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
@@ -41,7 +40,7 @@ import com.krayapp.duopress.ui.theme.AppTheme
 import kotlin.math.roundToInt
 
 /**
- * Показывает настройки вибрации, VPN и ассистента; при возобновлении запрашивает проверку устройства.
+ * Показывает настройки вибрации и VPN; при возобновлении запрашивает проверку устройства.
  *
  * @param state текущий снимок настроек и статусов.
  * @param onIntent принимает события экрана; исполнение платформенных запросов остаётся у хоста.
@@ -71,9 +70,7 @@ fun SettingsScreen(
             VibrationSection(settings, state.durationDraftMs, onIntent)
             HorizontalDivider()
             VpnSection(settings.vpnClient, state.device, onIntent)
-            HorizontalDivider()
         }
-        AssistantSection(state, onIntent)
         if (state.platformLaunchFailed) {
             Text(
                 text = stringResource(R.string.settings_platform_failed),
@@ -181,44 +178,6 @@ private fun SettingOption(@StringRes title: Int, selected: Boolean, onClick: () 
             onClick = onClick,
         ),
     )
-}
-
-@Composable
-private fun AssistantSection(state: SettingsUiState, onIntent: (SettingsIntent) -> Unit) {
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        SettingsHeading(R.string.card_assistant_title)
-        val device = state.device
-        Text(
-            text = if (device == null) stringResource(R.string.settings_device_loading) else assistantSummary(device),
-            style = MaterialTheme.typography.bodyMedium,
-            modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
-        )
-        Button(
-            onClick = { onIntent(SettingsIntent.OpenAssistantSettings) },
-            enabled = !state.platformBusy,
-            modifier = Modifier.heightIn(min = 48.dp),
-        ) {
-            Text(stringResource(R.string.btn_assistant))
-        }
-        SettingsHint(R.string.assistant_hint)
-    }
-}
-
-@Composable
-private fun assistantSummary(device: DeviceStatus): String {
-    val pkg = device.assistantPackage
-    val name = when {
-        device.assistantReadFailed -> stringResource(R.string.assistant_read_error)
-        pkg == null -> stringResource(R.string.assistant_none)
-        device.assistantLabel != null -> stringResource(R.string.app_label_with_package, device.assistantLabel, pkg)
-        else -> pkg
-    }
-    val summary = when (pkg) {
-        "com.google.android.apps.bard" -> R.string.assistant_ok
-        "com.google.android.googlequicksearchbox" -> R.string.assistant_google
-        else -> R.string.assistant_warn
-    }
-    return stringResource(summary, name)
 }
 
 @Composable

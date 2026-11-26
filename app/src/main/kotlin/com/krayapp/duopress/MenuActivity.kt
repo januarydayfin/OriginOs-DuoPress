@@ -6,7 +6,6 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
-import android.os.SystemClock
 import android.view.View
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
@@ -15,8 +14,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.core.view.WindowCompat
-import androidx.core.view.doOnAttach
-import androidx.core.view.doOnDetach
 import androidx.lifecycle.lifecycleScope
 import com.krayapp.duopress.data.SharedPrefsSettingsRepository
 import com.krayapp.duopress.menu.ActionSheet
@@ -54,8 +51,6 @@ class MenuActivity : ComponentActivity() {
 
         val decor = window.decorView
         selection = MenuSelection(
-            nowMs = SystemClock::uptimeMillis,
-            scheduleAt = { deadline, task -> handler.postAtTime({ task() }, deadline) },
             close = {
                 closing = true
                 // Закрываемся и без кадров анимации, например если другое действие уже увело окно.
@@ -75,11 +70,7 @@ class MenuActivity : ComponentActivity() {
                     }
                 }
             },
-            dispatchCircleToSearch = circleDispatch(applicationContext),
         )
-        decor.doOnAttach { attached ->
-            attached.doOnDetach { selection.onWindowDetached() }
-        }
         setContent {
             AppTheme {
                 ActionSheet(
@@ -128,11 +119,6 @@ class MenuActivity : ComponentActivity() {
     }
 }
 
-// В отложенной задаче остаётся только application context, не Activity или её окно.
-private fun circleDispatch(appContext: Context): () -> Unit = {
-    ActionRunner.triggerCircleToSearch(appContext, null, PrefsHelper.SPECIAL_CIRCLE_TO_SEARCH)
-}
-
 private suspend fun loadMenuItems(
     context: Context,
     previewItems: List<String>?,
@@ -146,7 +132,7 @@ private suspend fun loadMenuItems(
         val label = when (id) {
             PrefsHelper.SPECIAL_TORCH -> context.getString(R.string.menu_item_torch)
             PrefsHelper.SPECIAL_CAMERA -> context.getString(R.string.menu_item_camera)
-            PrefsHelper.SPECIAL_CIRCLE_TO_SEARCH -> context.getString(R.string.menu_item_cts)
+            PrefsHelper.SPECIAL_CIRCLE_TO_SEARCH -> context.getString(R.string.action_circle_unavailable)
             PrefsHelper.SPECIAL_VPN -> {
                 val client = VpnController.resolveClientPackage(context, settings.vpnClient)
                 val name = client?.let(VpnController::clientLabel) ?: context.getString(R.string.vpn_name_generic)

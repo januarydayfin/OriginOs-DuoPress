@@ -17,17 +17,17 @@ DuoPress переназначает жест, которым **vivo** и **iQOO*
 ## Возможности
 
 - **Открыть приложение или ярлык.** Найдите установленное приложение по названию или пакету либо введите имя пакета вручную. Для ярлыков поддерживаются статические, динамические и закреплённые shortcuts.
-- **Запустить быстрое действие.** Переключите фонарик, откройте камеру, переключите подключение **Happ** или **incy** в фоне либо вызовите **Circle to Search** на совместимом устройстве.
+- **Запустить быстрое действие.** Переключите фонарик, откройте камеру или переключите подключение **Happ** либо **incy** в фоне.
 - **Выбрать отдельное действие для экрана блокировки.** Назначьте фонарик или камеру. Если отдельное действие выключено, DuoPress попробует выполнить основное.
 - **Собрать своё меню.** Добавьте до 16 действий, приложений и ярлыков. Меняйте порядок перетаскиванием за ручку с тактильным откликом и смотрите результат в предпросмотре.
-- **Настроить отклик и проверить запуск.** В **«Настройках»** доступны вибрация, выбор VPN-клиента и переход к настройкам ассистента. **«Диагностика»** показывает обработчик жеста и журнал последнего запуска; тест в приложении не проверяет физическую кнопку.
+- **Настроить отклик и проверить запуск.** В **«Настройках»** доступны вибрация и выбор VPN-клиента. **«Диагностика»** показывает обработчик жеста и журнал последнего запуска; тест в приложении не проверяет физическую кнопку.
 
 Интерфейс на Material 3 следует светлой или тёмной теме системы, поддерживает динамические цвета на Android 12+ и доступен на русском и английском.
 
 ## Совместимость
 
 - **Android 7.1+ (API 25)** — минимальная версия для установки. Сам жест работает на сборках OriginOS, которые отправляют системный вызов Vivo Wallet и позволяют выбрать сторонний обработчик. Это зависит от прошивки.
-- **Ярлыки приложений** требуют **Android 11+** и [Shizuku](https://shizuku.rikka.app/), запущенного через ADB или беспроводную отладку от имени `shell`. Нужно выдать DuoPress разрешение в Shizuku. Запуск Shizuku от root и Sui не поддерживаются. Остальные действия от Shizuku не зависят.
+- **Ярлыки приложений** требуют **Android 11+** и [Shizuku](https://shizuku.rikka.app/) **с API 13+**, запущенного через ADB или беспроводную отладку от имени `shell`. Нужно выдать DuoPress разрешение в Shizuku. Запуск Shizuku от root и Sui не поддерживаются. Остальные действия от Shizuku не зависят.
 - DuoPress **не меняет приложение бесконтактной оплаты по умолчанию**. Запуск Mir Pay по кнопке и выбор платёжного приложения в Android — разные настройки.
 
 ## Быстрая настройка
@@ -65,7 +65,7 @@ APK появятся в `app/build/outputs/apk/`. Debug-сборка устан�
 
 ## English
 
-DuoPress remaps the power-button double press on supported vivo and iQOO phones running OriginOS. Open an app or shortcut, toggle the flashlight or Happ/incy VPN, launch the camera or Circle to Search, or show a customizable action menu. You can assign a separate flashlight or camera action to the lock screen. The app supports Android 7.1+; only app shortcuts require Android 11+ and Shizuku running as `shell`. The in-app test does not exercise the physical button.
+DuoPress remaps the power-button double press on supported vivo and iQOO phones running OriginOS. Open an app or shortcut, toggle the flashlight or Happ/incy VPN, launch the camera, or show a customizable action menu. You can assign a separate flashlight or camera action to the lock screen. The app supports Android 7.1+; only app shortcuts require Android 11+ and Shizuku API 13+ running as `shell`. The in-app test does not exercise the physical button.
 
 ## Лицензия
 

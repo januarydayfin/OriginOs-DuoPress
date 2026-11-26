@@ -223,7 +223,6 @@ private fun previewActionsState() = ActionsState(
             PrefsHelper.SPECIAL_TORCH,
             PrefsHelper.SPECIAL_CAMERA,
             PrefsHelper.SPECIAL_VPN,
-            PrefsHelper.SPECIAL_CIRCLE_TO_SEARCH,
         ),
         triggerLog = "",
     ),

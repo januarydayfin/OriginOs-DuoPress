@@ -86,11 +86,11 @@ class SettingsViewModelTest {
     }
 
     @Test
-    fun resumeRefreshesDeviceAndHandlerStatus() = runTest {
+    fun resumeRefreshesVpnStatus() = runTest {
         model.onIntent(SettingsIntent.Resume)
         runCurrent()
         assertEquals(device, model.state.value.device)
-        device = DeviceStatus(happAvailable = false, incyAvailable = true, vpnActive = true, assistantPackage = "org.example.assistant")
+        device = DeviceStatus(happAvailable = false, incyAvailable = true, vpnActive = true)
 
         model.onIntent(SettingsIntent.Resume)
         runCurrent()
@@ -156,24 +156,6 @@ class SettingsViewModelTest {
         }
     }
 
-    @Test
-    fun assistantResultMustMatchClaimBeforeItRefreshesDevice() = runTest {
-        model.onIntent(SettingsIntent.Resume)
-        runCurrent()
-        val original = model.state.value.device
-        model.onIntent(SettingsIntent.OpenAssistantSettings)
-        val request = checkNotNull(model.state.value.platformRequest)
-        assertEquals(PlatformCommand.OpenAssistantSettings, request.command)
-        device = device.copy(assistantPackage = "org.example.assistant")
-
-        model.onPlatformResult(request.id, launched = true)
-        runCurrent()
-        assertEquals(original, model.state.value.device)
-        assertTrue(model.acknowledgePlatformRequest(request.id))
-        model.onPlatformResult(request.id, launched = true)
-        runCurrent()
-        assertEquals(device, model.state.value.device)
-    }
 }
 
 internal class Task3SettingsRepository(triggerLog: String = "") : SettingsRepository {

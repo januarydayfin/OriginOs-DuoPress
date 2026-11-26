@@ -49,14 +49,13 @@ sealed interface SettingsIntent {
     data object CommitDuration : SettingsIntent
     data class SelectPattern(val pattern: String) : SettingsIntent
     data class SelectVpnClient(val client: String) : SettingsIntent
-    data object OpenAssistantSettings : SettingsIntent
 }
 
 /**
  * Меняет сохранённые настройки через общий репозиторий, системные команды передаёт хосту.
  *
  * @param repository источник сохранённых настроек, в приложении — общий legacy-репозиторий.
- * @param probe проверяет VPN и системного ассистента.
+ * @param probe проверяет VPN-клиенты и состояние туннеля.
  * @param dispatcher фоновый диспетчер для записи настроек, снимков предпросмотра и проб.
  */
 class SettingsViewModel(
@@ -105,10 +104,6 @@ class SettingsViewModel(
             is SettingsIntent.SelectVpnClient -> if (intent.client in vpnClients) {
                 save { SettingsChange.VpnClient(intent.client) }
             }
-            SettingsIntent.OpenAssistantSettings -> if (!state.value.platformBusy) {
-                val request = PlatformRequest.create(PlatformCommand.OpenAssistantSettings)
-                mutableState.update { it.copy(platformRequest = request, platformLaunchFailed = false) }
-            }
         }
     }
 
@@ -143,7 +138,6 @@ class SettingsViewModel(
             inFlightRequest = null,
             platformLaunchFailed = !launched,
         )
-        if (launched && acknowledged.command == PlatformCommand.OpenAssistantSettings) refreshDevice()
     }
 
     private fun refreshDevice() {

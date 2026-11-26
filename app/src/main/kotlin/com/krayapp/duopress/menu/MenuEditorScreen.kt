@@ -168,7 +168,7 @@ internal fun menuSpecialLabel(id: String): Int? = when (id) {
     PrefsHelper.SPECIAL_TORCH -> R.string.name_torch
     PrefsHelper.SPECIAL_CAMERA -> R.string.name_camera
     PrefsHelper.SPECIAL_VPN -> R.string.name_vpn
-    PrefsHelper.SPECIAL_CIRCLE_TO_SEARCH -> R.string.name_cts
+    PrefsHelper.SPECIAL_CIRCLE_TO_SEARCH -> R.string.action_circle_unavailable
     PrefsHelper.SPECIAL_MENU -> R.string.name_menu
     else -> null
 }
