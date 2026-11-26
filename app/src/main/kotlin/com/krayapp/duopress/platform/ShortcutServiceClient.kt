@@ -34,15 +34,20 @@ internal class ShortcutServiceClient(
     suspend fun getShortcutIcon(shortcut: ShortcutInfo, densityDpi: Int, sizePx: Int): Bitmap? =
         withService { it.getShortcutIcon(shortcut, densityDpi, sizePx) }
 
-    @Suppress("DEPRECATION") // Сохраняем прежний способ отправки PendingIntent на Android 14+.
+    @Suppress("DEPRECATION") // На Android 14+ сохраняем прежний режим разрешения фонового запуска.
     suspend fun startShortcut(packageName: String, shortcutId: String) = withService { service ->
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            // В фоне shell не может напрямую запустить Activity ярлыка, даже если RPC вернулся успешно.
             val pendingIntent = service.createLaunchIntent(packageName, shortcutId)
                 ?: throw ActivityNotFoundException("Shortcut not found: $packageName/$shortcutId")
-            val options = ActivityOptions.makeBasic()
-                .setPendingIntentBackgroundActivityStartMode(ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOWED)
-                .toBundle()
-            pendingIntent.send(options)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                val options = ActivityOptions.makeBasic()
+                    .setPendingIntentBackgroundActivityStartMode(ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOWED)
+                    .toBundle()
+                pendingIntent.send(options)
+            } else {
+                pendingIntent.send()
+            }
         } else {
             service.startShortcut(packageName, shortcutId)
         }

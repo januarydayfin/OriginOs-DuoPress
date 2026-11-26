@@ -42,13 +42,13 @@ class ShortcutUserService(private val context: Context) : IShortcutService.Stub(
 
     override fun createLaunchIntent(packageName: String, shortcutId: String): PendingIntent? {
         enforceAppCaller()
-        check(Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
+        check(Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
         return launcherApps.getShortcutIntent(packageName, shortcutId, null, Process.myUserHandle())
     }
 
     override fun startShortcut(packageName: String, shortcutId: String) {
         enforceAppCaller()
-        check(Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
+        check(Build.VERSION.SDK_INT < Build.VERSION_CODES.S)
         launcherApps.startShortcut(packageName, shortcutId, null, null, Process.myUserHandle())
     }
 

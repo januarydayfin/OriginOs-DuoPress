@@ -15,7 +15,7 @@
 - Только `experiment/no-hidden-api-bypass`. Не сбрасывать существующий diff эксперимента и не менять `main`.
 - Android 11+; Shizuku API 13+ от ADB shell; root и Sui не поддерживаются. `minSdk 25`, `targetSdk 36`; без новых разрешений, ролей, зависимостей для обхода или изменений манифеста.
 - Подключение не блокирует UI, имеет тайм-аут 5 секунд и восстанавливается после отключения Shizuku. Без постоянного демона.
-- Android 11–13: `LauncherApps.startShortcut`; Android 14+: `PendingIntent` ярлыка.
+- Android 11: `LauncherApps.startShortcut`; Android 12+: `PendingIntent` ярлыка (с явным разрешением фонового запуска начиная с Android 14).
 - Формат `shortcut:<package>:<id>:<label>`, ключи, сохранённые назначения, порядок и идентичность ярлыков не меняются. Старый `special:circle_to_search` не перезаписывать.
 - До изменения существующих символов — GitNexus upstream и предупреждение о HIGH/CRITICAL; перед каждым коммитом — `gitnexus_detect_changes(scope: "staged")`.
 
