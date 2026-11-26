@@ -1,6 +1,5 @@
 package com.krayapp.duopress
 
-import android.app.Activity
 import android.app.KeyguardManager
 import android.content.Context
 import android.content.Intent
@@ -9,11 +8,17 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.view.WindowManager
+import androidx.activity.ComponentActivity
+import androidx.lifecycle.lifecycleScope
 import com.krayapp.duopress.platform.resolveSwipeAction
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
 
 /** Прозрачная системная точка входа Vivo для двойного нажатия кнопки питания. */
 @Suppress("DEPRECATION")
-open class SwipeEntryActivity : Activity() {
+open class SwipeEntryActivity : ComponentActivity() {
+    private var actionJob: Job? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         allowOverKeyguard()
@@ -21,7 +26,7 @@ open class SwipeEntryActivity : Activity() {
         handleSwipeIntent(intent)
     }
 
-    override fun onNewIntent(intent: Intent?) {
+    override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
         overridePendingTransition(0, 0)
@@ -41,6 +46,7 @@ open class SwipeEntryActivity : Activity() {
     }
 
     private fun handleSwipeIntent(incomingIntent: Intent?) {
+        actionJob?.cancel()
         val locked = isDeviceLocked()
         val lockscreenEnabled = locked && PrefsHelper.isLockscreenEnabled(this)
         // Читаем только настройку выбранной ветки, как в Java-реализации.
@@ -55,15 +61,15 @@ open class SwipeEntryActivity : Activity() {
             Vibe.trigger(this)
         }
 
-        val isCamera = PrefsHelper.SPECIAL_CAMERA == actionId
-        ActionRunner.runAction(this, actionId, incomingIntent)
-
-        if (isCamera) {
-            // Камере нужно успеть открыть окно поверх локскрина до завершения Activity.
-            Handler(Looper.getMainLooper()).postDelayed(this::finish, 450L)
-        } else {
-            finish()
-            overridePendingTransition(0, 0)
+        actionJob = lifecycleScope.launch {
+            ActionRunner.runAction(this@SwipeEntryActivity, actionId, incomingIntent)
+            if (actionId == PrefsHelper.SPECIAL_CAMERA) {
+                // Камере нужно успеть открыть окно поверх локскрина до завершения Activity.
+                Handler(Looper.getMainLooper()).postDelayed(this@SwipeEntryActivity::finish, 450L)
+            } else {
+                finish()
+                overridePendingTransition(0, 0)
+            }
         }
     }
 

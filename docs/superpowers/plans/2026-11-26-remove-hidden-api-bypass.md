@@ -29,7 +29,7 @@
 
 ---
 
-### Задача 1: Один backend Shizuku для всех ярлыков
+### Task 1: Один backend Shizuku для всех ярлыков
 
 **Файлы:**
 - `app/src/main/aidl/com/krayapp/duopress/platform/IShortcutExperiment.aidl`, `app/src/main/kotlin/com/krayapp/duopress/platform/ShortcutExperiment{Client,Service}.kt` — довести эксперимент до `IShortcutService`, `ShortcutServiceClient`, `ShortcutUserService`.
@@ -49,7 +49,7 @@
 - [ ] Подключить общий suspend `ActionRunner.runAction` к обеим Activity, убрать `runShortcutExperiment`; не проглатывать `CancellationException`. Для запуска ярлыка UI ждёт окончания отправки, затем закрывается; обычные действия выполняются до первого приостановления и сохраняют прежний порядок, включая задержку камеры `450L`. В существующем отложенном callback CTS временно вызвать синхронный `triggerCircleToSearch` напрямую, чтобы не привязывать его к уже уничтоженной Activity. Адаптировать прямые вызовы в `SwipeEntryContractTest` к `suspend`, сохранив все проверки статуса и входящего интента.
 - [ ] Запустить `./gradlew :app:testDebugUnitTest :app:assembleDebug :app:assembleDebugAndroidTest`. На изолированном эмуляторе подтвердить список, иконку, запуск из `SwipeEntryActivity` и меню; проверить, что приложение не меняет сохранённые значения, если Shizuku недоступен. После проверки diff и GitNexus — отдельный локальный коммит backend.
 
-### Задача 2: Удаление Circle to Search, зависимости и устаревших настроек
+### Task 2: Удаление Circle to Search, зависимости и устаревших настроек
 
 **Файлы:**
 - `app/build.gradle`, удалить `app/src/main/kotlin/com/krayapp/duopress/HiddenApiCompat.kt`.

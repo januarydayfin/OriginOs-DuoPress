@@ -34,6 +34,18 @@ class ShortcutPickerViewModelTest : PickerViewModelTestFixture() {
     private val shortcut = ShortcutEntry(packageName, "send+%:fast", "Pay +%: now", ShortcutKind.Dynamic, 4)
 
     @Test
+    fun oldShizukuRequiresUpgradeWithoutLoading() = runTest {
+        gateway.currentStatus = Status.PRE_V13
+        catalog.entries = listOf(AppEntry(packageName, "Example"))
+        val model = model()
+        runCurrent()
+        model.onIntent(ShortcutPickerIntent.ToggleApp(packageName))
+        runCurrent()
+        assertEquals(ShortcutAccess.PreV13, model.state.value.access)
+        assertTrue(gateway.loads.isEmpty())
+    }
+
+    @Test
     fun menuPickRejectsCachedShortcutAfterAccessLoss() = runTest {
         catalog.entries = listOf(AppEntry(packageName, "Example"))
         gateway.enqueue().complete(listOf(shortcut))

@@ -108,7 +108,7 @@ private fun ShortcutAccessMessage(state: ShortcutPickerState, onIntent: (Shortcu
         ShortcutAccess.Ready -> return
         ShortcutAccess.Checking -> R.string.shortcut_picker_checking_access
         ShortcutAccess.Unavailable -> R.string.shortcut_shizuku_unavailable
-        ShortcutAccess.PreV11 -> R.string.shortcut_shizuku_pre_v11
+        ShortcutAccess.PreV13 -> R.string.shortcut_shizuku_pre_v13
         ShortcutAccess.UnsupportedUid -> R.string.shortcut_unsupported_uid
         ShortcutAccess.UnsupportedApi -> R.string.shortcut_unsupported_api
         ShortcutAccess.PermissionDenied -> R.string.shortcut_permission_denied

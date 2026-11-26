@@ -5,6 +5,21 @@ import org.junit.Test
 
 class MenuSelectionTest {
     @Test
+    fun shortcutDelaysCloseAndDispatchesOnlyOnce() {
+        val host = FakeHost()
+        val id = "shortcut:pkg:home:Home"
+        host.menu.select(id)
+        host.menu.select(id)
+        host.menu.onHidden()
+        assertEquals(listOf("dispatch:$id"), host.events)
+
+        host.shortcutComplete?.invoke() ?: error("No shortcut in flight")
+        host.menu.onHidden()
+        host.menu.onHidden()
+        assertEquals(listOf("dispatch:$id", "close", "finish"), host.events)
+    }
+
+    @Test
     fun circleToSearchWaitsForFinishAndFor550msFromSelection() {
         val host = FakeHost()
         host.advanceTo(100)
@@ -67,6 +82,7 @@ class MenuSelectionTest {
 
     private class FakeHost {
         val events = mutableListOf<String>()
+        var shortcutComplete: (() -> Unit)? = null
         private var now = 0L
         private val queued = mutableListOf<Pair<Long, () -> Unit>>()
         val menu = MenuSelection(
@@ -74,7 +90,15 @@ class MenuSelectionTest {
             scheduleAt = { deadline, task -> queued += deadline to task },
             close = { events += "close" },
             finish = { events += "finish" },
-            dispatchImmediately = { events += "run:$it" },
+            dispatch = { id, complete ->
+                if (id.startsWith("shortcut:")) {
+                    events += "dispatch:$id"
+                    shortcutComplete = complete
+                } else {
+                    events += "run:$id"
+                    complete()
+                }
+            },
             dispatchCircleToSearch = { events += "circle@$now" },
         )
 

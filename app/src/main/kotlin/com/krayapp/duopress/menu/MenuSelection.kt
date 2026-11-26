@@ -9,7 +9,7 @@ import com.krayapp.duopress.PrefsHelper
  * @param scheduleAt планирует задачу независимо от жизненного цикла окна.
  * @param close начинает анимацию скрытия.
  * @param finish завершает Activity после скрытия.
- * @param dispatchImmediately выполняет действия, для которых не нужен снимок экрана.
+ * @param dispatch выполняет действие и вызывает callback, когда попытка завершилась.
  * @param dispatchCircleToSearch выполняет действие с application context после снятия окна.
  */
 internal class MenuSelection(
@@ -17,9 +17,10 @@ internal class MenuSelection(
     private val scheduleAt: (Long, () -> Unit) -> Unit,
     private val close: () -> Unit,
     private val finish: () -> Unit,
-    private val dispatchImmediately: (String) -> Unit,
+    private val dispatch: (String, () -> Unit) -> Unit,
     private val dispatchCircleToSearch: () -> Unit,
 ) {
+    private var selected = false
     private var closing = false
     private var finishing = false
     private var circleDeadline: Long? = null
@@ -30,20 +31,27 @@ internal class MenuSelection(
      * @param id сохранённый ID выбранного действия.
      */
     fun select(id: String) {
-        if (closing) return
-        closing = true
+        if (selected || closing) return
+        selected = true
         try {
             if (id == PrefsHelper.SPECIAL_CIRCLE_TO_SEARCH) {
                 circleDeadline = nowMs() + CIRCLE_DELAY_MS
+                beginClose()
             } else {
-                dispatchImmediately(id)
+                dispatch(id, ::beginClose)
             }
-        } finally {
-            close()
+        } catch (error: Exception) {
+            beginClose()
+            throw error
         }
     }
 
     fun dismiss() {
+        if (selected) return
+        beginClose()
+    }
+
+    private fun beginClose() {
         if (closing) return
         closing = true
         close()

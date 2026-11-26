@@ -165,7 +165,7 @@
     <string name="shortcut_install_explain">Узнать почему</string>
     <string name="shortcut_install_market">Открыть в магазине</string>
     <string name="shortcut_install_market_failed">Не удалось открыть страницу Shizuku. Найдите приложение в магазине вручную.</string>
-    <string name="shortcut_shizuku_pre_v11">Для ярлыков нужен Shizuku с API 11 или новее</string>
+    <string name="shortcut_shizuku_pre_v13">Для ярлыков нужен Shizuku с API 13 или новее</string>
     <string name="shortcut_permission_required">Разрешите DuoPress доступ в Shizuku</string>
     <string name="shortcut_permission_denied">Разрешение Shizuku не выдано</string>
     <string name="shortcut_picker_checking_access">Проверка доступа к Shizuku…</string>

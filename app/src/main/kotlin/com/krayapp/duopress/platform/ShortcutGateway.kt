@@ -5,10 +5,12 @@ import android.content.Intent
 import android.content.pm.ShortcutInfo
 import androidx.annotation.WorkerThread
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
 import com.krayapp.duopress.ShizukuShortcuts
 import com.krayapp.duopress.ShizukuShortcuts.Status
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicBoolean
+import kotlin.math.roundToInt
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ensureActive
@@ -112,7 +114,7 @@ class AndroidShortcutGateway internal constructor(
         val unique = LinkedHashMap<String, ShortcutInfo>()
         for (info in ShizukuShortcuts.getShortcuts(appContext, packageName)) {
             ensureActive()
-            val id = info?.id ?: continue
+            val id = info.id
             if (id.isNotBlank() && id !in unique) unique[id] = info
         }
         val entries = unique.map { (id, info) ->
@@ -139,6 +141,10 @@ class AndroidShortcutGateway internal constructor(
 
     override suspend fun icon(shortcut: ShortcutEntry): ImageBitmap? = withContext(dispatcher) {
         val info = infoByPackage[shortcut.packageName]?.get(shortcut.id) ?: return@withContext null
-        optionalPickerValue { ShizukuShortcuts.getShortcutIcon(appContext, info)?.let(appContext::pickerIcon) }
+        val metrics = appContext.resources.displayMetrics
+        optionalPickerValue {
+            ShizukuShortcuts.getShortcutIcon(appContext, info, metrics.densityDpi, (32 * metrics.density).roundToInt())
+                ?.asImageBitmap()
+        }
     }
 }

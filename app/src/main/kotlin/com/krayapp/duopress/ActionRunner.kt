@@ -12,6 +12,10 @@ import android.os.SystemClock
 import android.provider.MediaStore
 import android.provider.Settings
 import java.lang.reflect.InvocationTargetException
+import kotlin.coroutines.cancellation.CancellationException
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 /** Общий исполнитель действий для системной точки входа Vivo и меню. */
 class ActionRunner private constructor() {
@@ -24,7 +28,7 @@ class ActionRunner private constructor() {
 
         /** Выполняет действие и возвращает записанный в журнал статус. */
         @JvmStatic
-        fun runAction(context: Context, actionId: String?, sourceIntent: Intent?): String {
+        suspend fun runAction(context: Context, actionId: String?, sourceIntent: Intent?): String {
             val normalized = normalize(actionId)
             if (normalized == null) {
                 PrefsHelper.saveTriggerLog(context, sourceIntent, null, context.getString(R.string.log_reason_not_set))
@@ -49,6 +53,8 @@ class ActionRunner private constructor() {
                     id = pkg
                 }
                 return launchApp(context, id, sourceIntent)
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 val status = context.getString(R.string.log_action_failed, safeMsg(e))
                 PrefsHelper.saveTriggerLog(context, sourceIntent, id, status)
@@ -56,11 +62,16 @@ class ActionRunner private constructor() {
             }
         }
 
-        private fun launchShortcut(context: Context, id: String, sourceIntent: Intent?): String {
+        private suspend fun launchShortcut(
+            context: Context,
+            id: String,
+            sourceIntent: Intent?,
+            dispatcher: CoroutineDispatcher = Dispatchers.IO,
+        ): String = withContext(dispatcher) {
             try {
                 val shortcut = ShortcutAction.parse(id)
                 if (shortcut == null) {
-                    return saveShortcutResult(
+                    return@withContext saveShortcutResult(
                         context, sourceIntent, id, context.getString(R.string.log_shortcut_invalid, id),
                     )
                 }
@@ -69,13 +80,13 @@ class ActionRunner private constructor() {
                 if (status != ShizukuShortcuts.Status.OK) {
                     val messageRes = when (status) {
                         ShizukuShortcuts.Status.UNAVAILABLE -> R.string.shortcut_shizuku_unavailable
-                        ShizukuShortcuts.Status.PRE_V11 -> R.string.shortcut_shizuku_pre_v11
+                        ShizukuShortcuts.Status.PRE_V13 -> R.string.shortcut_shizuku_pre_v13
                         ShizukuShortcuts.Status.PERMISSION_DENIED -> R.string.shortcut_permission_required
                         ShizukuShortcuts.Status.UNSUPPORTED_UID -> R.string.shortcut_unsupported_uid
                         ShizukuShortcuts.Status.UNSUPPORTED_API -> R.string.shortcut_unsupported_api
                         else -> R.string.shortcut_shizuku_unavailable
                     }
-                    return saveShortcutResult(context, sourceIntent, id, context.getString(messageRes))
+                    return@withContext saveShortcutResult(context, sourceIntent, id, context.getString(messageRes))
                 }
 
                 ShizukuShortcuts.startShortcut(context, shortcut.packageName, shortcut.shortcutId)
@@ -83,11 +94,13 @@ class ActionRunner private constructor() {
                 if (label == null || label.trim { it <= ' ' }.isEmpty()) {
                     label = shortcut.shortcutId
                 }
-                return saveShortcutResult(context, sourceIntent, id, context.getString(R.string.log_shortcut_ok, label))
+                saveShortcutResult(context, sourceIntent, id, context.getString(R.string.log_shortcut_ok, label))
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
-                return saveShortcutResult(context, sourceIntent, id, context.getString(R.string.log_shortcut_failed, safeMsg(e)))
+                saveShortcutResult(context, sourceIntent, id, context.getString(R.string.log_shortcut_failed, safeMsg(e)))
             } catch (e: LinkageError) {
-                return saveShortcutResult(context, sourceIntent, id, context.getString(R.string.log_shortcut_failed, safeMsg(e)))
+                saveShortcutResult(context, sourceIntent, id, context.getString(R.string.log_shortcut_failed, safeMsg(e)))
             }
         }
 

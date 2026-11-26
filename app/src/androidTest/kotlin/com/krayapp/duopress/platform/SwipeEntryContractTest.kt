@@ -24,6 +24,7 @@ import com.krayapp.duopress.R
 import com.krayapp.duopress.SwipeEntryActivity
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -152,10 +153,10 @@ class SwipeEntryContractTest {
             Triple(" \tshortcut:\n", "shortcut:", app.getString(R.string.log_shortcut_invalid, "shortcut:")),
         )
         for ((input, target, status) in cases) {
-            assertEquals("input=$input", status, ActionRunner.runAction(noLaunch, input, source))
+            assertEquals("input=$input", status, runBlocking { ActionRunner.runAction(noLaunch, input, source) })
             assertTriggerLog(PrefsHelper.getLastTriggerLog(app).orEmpty(), "2", target, status)
         }
-        ActionRunner.runAction(noLaunch, null, null)
+        runBlocking { ActionRunner.runAction(noLaunch, null, null) }
         val noSource = PrefsHelper.getLastTriggerLog(app).orEmpty()
         assertFalse(noSource.contains("Action:"))
         assertFalse(noSource.contains("Extras:"))

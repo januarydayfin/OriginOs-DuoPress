@@ -4,14 +4,19 @@ import android.content.Context
 import android.content.ContextWrapper
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.Color
+import android.graphics.drawable.ColorDrawable
 import android.os.Build
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.krayapp.duopress.R
 import com.krayapp.duopress.ShizukuShortcuts
 import com.krayapp.duopress.VpnController
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertThrows
+import org.junit.Assert.assertTrue
 import org.junit.Assume.assumeFalse
 import org.junit.Assume.assumeTrue
 import org.junit.Test
@@ -19,6 +24,30 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class PlatformAdaptersTest {
+    @Test
+    fun shortcutIconIsBoundedOrFallsBack() {
+        val wideIcon = object : ColorDrawable(Color.CYAN) {
+            override fun getIntrinsicWidth() = 512
+            override fun getIntrinsicHeight() = 256
+        }
+        val bitmap = requireNotNull(renderShortcutIcon(wideIcon, 512))
+        assertEquals(128, bitmap.width)
+        assertEquals(64, bitmap.height)
+        assertEquals(Color.CYAN, bitmap.getPixel(0, 0))
+        assertNull(renderShortcutIcon(null, 512))
+    }
+
+    @Test
+    fun grantedShizukuLoadsARealShortcutIcon() = runBlocking {
+        // Запускается отдельно на эмуляторе с Contacts и разрешением DuoPress в Shizuku.
+        assumeTrue(InstrumentationRegistry.getArguments().getString("verifyShortcutIcon") == "true")
+        val app = InstrumentationRegistry.getInstrumentation().targetContext
+        val shortcut = ShizukuShortcuts.getShortcuts(app, "com.android.contacts")
+            .single { it.id == "shortcut-add-contact" }
+        val icon = requireNotNull(ShizukuShortcuts.getShortcutIcon(app, shortcut, 160, 32))
+        assertTrue(icon.width in 1..32 && icon.height in 1..32)
+    }
+
     @Test
     fun unsupportedAndroidShortCircuitsShizukuBeforeBinder() {
         assumeTrue("Requires API 29 or older", Build.VERSION.SDK_INT <= Build.VERSION_CODES.Q)
@@ -29,16 +58,16 @@ class PlatformAdaptersTest {
     @Test
     fun shortcutArgumentsAreValidatedBeforeCheckingShizuku() {
         assertEquals("packageName is empty", assertThrows(IllegalArgumentException::class.java) {
-            ShizukuShortcuts.getShortcuts(null, " \t")
+            runBlocking { ShizukuShortcuts.getShortcuts(null, " \t") }
         }.message)
         assertEquals("packageName is empty", assertThrows(IllegalArgumentException::class.java) {
-            ShizukuShortcuts.startShortcut(null, null, null)
+            runBlocking { ShizukuShortcuts.startShortcut(null, null, null) }
         }.message)
         assertEquals("shortcutId is empty", assertThrows(IllegalArgumentException::class.java) {
-            ShizukuShortcuts.startShortcut(null, "test.package", " \t")
+            runBlocking { ShizukuShortcuts.startShortcut(null, "test.package", " \t") }
         }.message)
         assertEquals("shortcut == null", assertThrows(IllegalArgumentException::class.java) {
-            ShizukuShortcuts.getShortcutIcon(null, null)
+            runBlocking { ShizukuShortcuts.getShortcutIcon(null, null, 160, 32) }
         }.message)
     }
 

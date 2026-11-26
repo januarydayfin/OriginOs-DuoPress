@@ -31,7 +31,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 enum class ShortcutAccess {
-    Checking, Ready, Unavailable, PreV11, UnsupportedUid, UnsupportedApi,
+    Checking, Ready, Unavailable, PreV13, UnsupportedUid, UnsupportedApi,
     PermissionAvailable, PermissionDenied, PermissionInterrupted,
 }
 
@@ -254,7 +254,7 @@ class ShortcutPickerViewModel(
                 val access = when (gateway.status()) {
                     Status.OK -> ShortcutAccess.Ready
                     Status.UNAVAILABLE -> ShortcutAccess.Unavailable
-                    Status.PRE_V11 -> ShortcutAccess.PreV11
+                    Status.PRE_V13 -> ShortcutAccess.PreV13
                     Status.UNSUPPORTED_UID -> ShortcutAccess.UnsupportedUid
                     Status.UNSUPPORTED_API -> ShortcutAccess.UnsupportedApi
                     Status.PERMISSION_DENIED -> if (gateway.canRequestPermission()) {

@@ -66,7 +66,15 @@ class MenuActivity : ComponentActivity() {
                 decor.visibility = View.INVISIBLE
                 finish()
             },
-            dispatchImmediately = { ActionRunner.runAction(this, it, null) },
+            dispatch = { id, complete ->
+                lifecycleScope.launch {
+                    try {
+                        ActionRunner.runAction(this@MenuActivity, id, null)
+                    } finally {
+                        complete()
+                    }
+                }
+            },
             dispatchCircleToSearch = circleDispatch(applicationContext),
         )
         decor.doOnAttach { attached ->
@@ -122,7 +130,7 @@ class MenuActivity : ComponentActivity() {
 
 // В отложенной задаче остаётся только application context, не Activity или её окно.
 private fun circleDispatch(appContext: Context): () -> Unit = {
-    ActionRunner.runAction(appContext, PrefsHelper.SPECIAL_CIRCLE_TO_SEARCH, null)
+    ActionRunner.triggerCircleToSearch(appContext, null, PrefsHelper.SPECIAL_CIRCLE_TO_SEARCH)
 }
 
 private suspend fun loadMenuItems(
