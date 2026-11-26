@@ -52,6 +52,8 @@ import java.util.concurrent.TimeUnit.SECONDS
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.asCoroutineDispatcher
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.map
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -679,6 +681,36 @@ class ComposeAppIntegrationTest {
         }
         compose.onNode(availableTile).performClick()
         compose.onNode(heading(R.string.shortcut_picker_title)).assertIsDisplayed()
+    }
+
+    @Test
+    fun shizukuPackageChangesRefreshShortcutsWithoutLeavingApp() {
+        val installed = AtomicBoolean(false)
+        val packageRevision = MutableStateFlow(0)
+        MainActivity.dependenciesOverride = {
+            AppDependencies(
+                it,
+                isSupportedDevice = { true },
+                shizukuInstalled = installed::get,
+                shizukuPackageChecks = packageRevision.map { Unit },
+            )
+        }
+        launch()
+        openActionPicker()
+        awaitShortcutInstallHint()
+
+        installed.set(true)
+        packageRevision.value++
+        val availableTile = text(R.string.name_shortcuts) and isEnabled() and shortcutInstallHint().not()
+        compose.waitUntil(5_000) { compose.onAllNodes(availableTile).fetchSemanticsNodes().isNotEmpty() }
+        compose.onNode(availableTile).assertIsDisplayed()
+
+        installed.set(false)
+        packageRevision.value++
+        awaitShortcutInstallHint()
+        compose.onNode(text(R.string.name_shortcuts)).performClick()
+        awaitText(R.string.shortcut_install_title)
+        assertEquals(Lifecycle.State.RESUMED, scenario.state)
     }
 
     @Test

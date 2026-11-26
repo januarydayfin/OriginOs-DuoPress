@@ -24,7 +24,9 @@ import com.krayapp.duopress.platform.ShortcutControl
 import com.krayapp.duopress.platform.ShortcutGateway
 import com.krayapp.duopress.platform.isShizukuInstalled
 import com.krayapp.duopress.platform.isSupportedVendor
+import com.krayapp.duopress.platform.shizukuInstallChecks
 import com.krayapp.duopress.settings.SettingsViewModel
+import kotlinx.coroutines.flow.Flow
 
 /** Один набор зависимостей launcher, без ссылки на окно или Activity. */
 internal class AppDependencies(
@@ -36,6 +38,7 @@ internal class AppDependencies(
         isSupportedVendor(Build.MANUFACTURER, Build.BRAND)
     },
     shizukuInstalled: (suspend () -> Boolean)? = null,
+    shizukuPackageChecks: Flow<Unit>? = null,
 ) {
     private val appContext = context.applicationContext
     private val repository = SharedPrefsSettingsRepository(appContext)
@@ -45,6 +48,7 @@ internal class AppDependencies(
     private val androidShortcuts by lazy { AndroidShortcutGateway(appContext) }
     val shortcutControl = shortcutControl ?: AndroidShortcutControl { androidShortcuts }
     val shizukuInstalled: suspend () -> Boolean = shizukuInstalled ?: { isShizukuInstalled(appContext) }
+    val shizukuPackageChecks: Flow<Unit> = shizukuPackageChecks ?: shizukuInstallChecks(appContext)
 
     fun shouldWarnAboutVendor(): Boolean = !isSupportedDevice() &&
         !PrefsHelper.preferences(appContext).getBoolean(SKIP_VENDOR_WARNING, false)

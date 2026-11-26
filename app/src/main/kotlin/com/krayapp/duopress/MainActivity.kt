@@ -64,6 +64,7 @@ import com.krayapp.duopress.ui.navigation.AppNavigator
 import com.krayapp.duopress.ui.navigation.AppRoute
 import com.krayapp.duopress.ui.theme.AppTheme
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.first
@@ -148,7 +149,10 @@ private fun LauncherContent(session: LauncherSession, host: PlatformRequestHost)
     LaunchedEffect(activityLifecycle, session) {
         activityLifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
             shizukuInstalled = null
-            shizukuInstalled = session.dependencies.shizukuInstalled()
+            session.dependencies.shizukuPackageChecks.collectLatest {
+                shizukuInstalled = null
+                shizukuInstalled = session.dependencies.shizukuInstalled()
+            }
         }
     }
     AppNavHost(onBack = session::back, menuEditorActions = { entry ->
