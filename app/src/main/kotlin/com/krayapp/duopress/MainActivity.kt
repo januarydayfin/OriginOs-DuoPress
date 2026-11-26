@@ -111,6 +111,7 @@ private class LauncherSession(val dependencies: AppDependencies) : ViewModel() {
                 model.onIntent(MenuEditorIntent.BackFromPicker)
                 return true
             }
+            if (model.deferExit()) return true
         }
         exit(entry)
         return false
@@ -185,6 +186,12 @@ private fun LauncherContent(session: LauncherSession, host: PlatformRequestHost)
             AppRoute.MenuEditor -> {
                 val model = session.model<MenuEditorViewModel>(entry)
                 val state by model.state.collectAsStateWithLifecycle()
+                LaunchedEffect(entry, model) {
+                    entry.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+                        model.state.first { it.exitReady }
+                        navigator.back(entry, session::back)
+                    }
+                }
                 PlatformRequests(
                     entry, navigator, host, session.requests, model, model.state,
                     requestFor = { it.platformRequest }, acknowledge = model::acknowledgePlatformRequest,

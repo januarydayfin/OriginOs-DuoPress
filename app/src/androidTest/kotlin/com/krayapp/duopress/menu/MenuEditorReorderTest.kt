@@ -65,6 +65,8 @@ class MenuEditorReorderTest {
 
     @Test fun dropKeepsVisibleOrderUntilSavedSnapshotArrives() {
         setup()
+        val appNodes = compose.onAllNodesWithText("a").fetchSemanticsNodes().map { it.id }
+        val cameraNode = compose.onNodeWithText(context.getString(R.string.name_camera)).fetchSemanticsNode().id
         dragSecondDuplicate()
         compose.onRoot().performTouchInput { up() }
         compose.waitForIdle()
@@ -78,6 +80,8 @@ class MenuEditorReorderTest {
         assertCameraBelowBothApps()
         compose.runOnIdle { saved.value = listOf("app:a", "app:a", "special:camera", "app:b") }
         assertCameraBelowBothApps()
+        assertEquals(appNodes, compose.onAllNodesWithText("a").fetchSemanticsNodes().map { it.id })
+        assertEquals(cameraNode, compose.onNodeWithText(cameraLabel).fetchSemanticsNode().id)
     }
 
     @Test fun cancelledDragDoesNotSave() {

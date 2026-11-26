@@ -132,6 +132,61 @@ class MenuEditorViewModelTest {
     }
 
     @Test
+    fun restoredDraftCanBeRevertedWithoutSaving() = withEditor { _, repo ->
+        val base = repo.snapshot().menuItems
+        val handle = SavedStateHandle()
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        val first = MenuEditorViewModel(repo, Catalog, dispatcher, handle)
+        advanceUntilIdle()
+        first.onIntent(MenuEditorIntent.Move(1, 0, base))
+        val restored = MenuEditorViewModel(repo, Catalog, dispatcher,
+            SavedStateHandle(handle.keys().associateWith { handle.get<Any?>(it) }))
+        first.viewModelScope.cancel()
+        try {
+            advanceUntilIdle()
+            assertEquals(listOf(base[1], base[0], base[2]), restored.state.value.menuItems)
+            restored.onIntent(MenuEditorIntent.Move(0, 1, restored.state.value.menuItems))
+            assertFalse(restored.deferExit())
+            assertEquals(base, repo.snapshot().menuItems)
+        } finally {
+            restored.viewModelScope.cancel()
+        }
+    }
+
+    @Test
+    fun additionsAndDeletesUseStoredPositionsWithoutOverwritingDraft() = withEditor { editor, repo ->
+        editor.onIntent(MenuEditorIntent.Move(2, 0, editor.state.value.menuItems))
+        editor.onIntent(MenuEditorIntent.OpenGrid)
+        editor.onIntent(MenuEditorIntent.PickSpecial("special:vpn"))
+        advanceUntilIdle()
+        assertEquals(listOf("special:camera", "", "special:torch", "special:vpn"), editor.state.value.menuItems)
+        editor.onIntent(MenuEditorIntent.RemoveAt(1, editor.state.value.menuItems))
+        advanceUntilIdle()
+        assertEquals(listOf("special:torch", "special:camera", "special:vpn"), repo.snapshot().menuItems)
+        editor.onIntent(MenuEditorIntent.Preview)
+        val wanted = listOf("special:camera", "special:torch", "special:vpn")
+        assertEquals(PlatformCommand.PreviewMenu(wanted), editor.state.value.platformRequest?.command)
+        assertTrue(editor.deferExit())
+        advanceUntilIdle()
+        assertEquals(wanted, repo.snapshot().menuItems)
+    }
+
+    @Test
+    fun droppingChangesOnlyEditorOrder() = withEditor { editor, repo ->
+        val before = repo.snapshot().menuItems
+        editor.onIntent(MenuEditorIntent.Move(2, 0, before))
+        advanceUntilIdle()
+        assertEquals(before, repo.snapshot().menuItems)
+        assertEquals(listOf(before[2], before[0], before[1]), editor.state.value.menuItems)
+        assertTrue(editor.deferExit())
+        assertTrue(editor.deferExit())
+        advanceUntilIdle()
+        assertTrue(editor.state.value.exitReady)
+        assertFalse(editor.deferExit())
+        assertEquals(editor.state.value.menuItems, repo.snapshot().menuItems)
+    }
+
+    @Test
     fun staleMoveDoesNotReorderAnEditNotYetObserved() = withEditor { editor, repository ->
         val shown = editor.state.value.menuItems
         val staleTap = MenuEditorIntent.Move(1, 2, shown)
@@ -139,10 +194,12 @@ class MenuEditorViewModelTest {
         repository.replaceMenu(persisted, publish = false)
 
         editor.onIntent(staleTap)
+        editor.deferExit()
         advanceUntilIdle()
 
         assertEquals(persisted, repository.snapshot().menuItems)
-        assertEquals(shown, editor.state.value.menuItems)
+        assertFalse(editor.state.value.exitReady)
+        assertEquals(persisted.toSet(), editor.state.value.menuItems.toSet())
         assertEquals(MenuEditResult.NoChange, editor.state.value.editResult)
     }
 
@@ -201,7 +258,7 @@ class MenuEditorViewModelTest {
     fun previewCommandMustBeAcknowledgedBeforeRunningAndCompletedBeforeRepeating() = withEditor { editor, _ ->
         editor.onIntent(MenuEditorIntent.Preview)
         val request = requireNotNull(editor.state.value.platformRequest)
-        assertEquals(PlatformCommand.PreviewMenu, request.command)
+        assertEquals(PlatformCommand.PreviewMenu(visibleMenuItems(editor.state.value.menuItems)), request.command)
         editor.onIntent(MenuEditorIntent.Preview)
         assertEquals(request, editor.state.value.platformRequest)
         assertFalse(editor.acknowledgePlatformRequest(request.id + 1))

@@ -474,6 +474,31 @@ class ComposeAppIntegrationTest {
     }
 
     @Test
+    fun reorderedMenuIsWrittenOnLeavingEditor() {
+        val initial = prefs.getString("menu_items_json", null)
+        val before = """["special:torch","special:camera"]"""
+        try {
+            PrefsHelper.setMenuItemsJson(context, before)
+            launch()
+            compose.onNode(text(R.string.card_menu_title)).performScrollTo().performClick()
+            val actions = compose.onAllNodes(SemanticsMatcher.keyIsDefined(SemanticsActions.CustomActions))
+            val moveUp = actions[1].fetchSemanticsNode().config[SemanticsActions.CustomActions].first()
+            compose.runOnIdle { moveUp.action() }
+            scenario.recreate()
+            compose.onNode(hasContentDescription(context.getString(R.string.editor_add_action))).performClick()
+            instrumentation.sendKeyDownUpSync(KeyEvent.KEYCODE_BACK)
+            compose.onNode(heading(R.string.editor_menu_title)).assertIsDisplayed()
+            assertEquals(before, PrefsHelper.getMenuItemsJson(context))
+            instrumentation.sendKeyDownUpSync(KeyEvent.KEYCODE_BACK)
+            assertActions()
+            assertEquals("""["special:camera","special:torch"]""", PrefsHelper.getMenuItemsJson(context))
+        } finally {
+            if (initial == null) prefs.edit().remove("menu_items_json").commit()
+            else PrefsHelper.setMenuItemsJson(context, initial)
+        }
+    }
+
+    @Test
     fun editorBackFirstClosesEmbeddedPickerAndPreviewOpensRealMenu() {
         launch()
         compose.onNode(text(R.string.card_menu_title)).performScrollTo().performClick()

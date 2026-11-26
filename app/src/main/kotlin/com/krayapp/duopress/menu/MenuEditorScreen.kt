@@ -88,7 +88,7 @@ private fun EditorRows(
         if (!state.loadingMenu && renderedMenu.isEmpty()) {
             PickerMessage(stringResource(R.string.editor_empty))
         }
-        ReorderableMenuList(renderedMenu, !state.saving, state.moveRollback,
+        ReorderableMenuList(renderedMenu, state.rowKeys, !state.saving, state.moveRollback,
             onMove = { from, to, snapshot -> onIntent(MenuEditorIntent.Move(from, to, snapshot)) }) { index, handle ->
             val id = renderedMenu[index].legacyMenuTrim()
             val special = menuSpecialLabel(id)

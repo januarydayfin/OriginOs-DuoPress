@@ -45,6 +45,8 @@ data class MenuEditorState(
     val editResult: MenuEditResult? = null,
     // При отказе снимок меню может не измениться. Отдельный ключ сбрасывает временный порядок UI.
     val moveRollback: Long = 0,
+    val rowKeys: List<String> = menuRowKeys(menuItems),
+    val exitReady: Boolean = false,
     val platformRequest: PlatformRequest? = null,
     val platformLaunchFailed: Boolean = false,
     internal val acknowledgedPreview: Long? = null,
@@ -88,11 +90,16 @@ class MenuEditorViewModel(
     private var allApps = emptyList<AppEntry>()
     private var appsJob: Job? = null
     private var searchJob: Job? = null
+    private var draft = restoredDraft()
+    private var removedIndex: Int? = null
 
     init {
         viewModelScope.launch {
             repository.observe().flowOn(dispatcher).collect { saved ->
-                mutableState.update { it.copy(menuItems = saved.menuItems, loadingMenu = false) }
+                if (state.value.loadingMenu || saved.menuItems != draft.base) {
+                    updateDraft(draft.observed(saved.menuItems, removedIndex))
+                    removedIndex = null
+                }
             }
         }
         loadApps()
@@ -138,19 +145,25 @@ class MenuEditorViewModel(
             is MenuEditorIntent.PickSpecial ->
                 if (current.picker == MenuPicker.Grid && intent.id in menuSpecialIds) save(MenuEdit.Add(intent.id))
             is MenuEditorIntent.RemoveAt -> if (current.picker == MenuPicker.None) {
-                save(MenuEdit.RemoveAt(intent.index, intent.expectedRaw))
+                if (intent.expectedRaw != current.menuItems || intent.index !in draft.order.indices) {
+                    mutableState.update { it.copy(editResult = MenuEditResult.NoChange) }
+                } else if (!current.saving) {
+                    removedIndex = draft.order[intent.index]
+                    save(MenuEdit.RemoveAt(draft.order[intent.index], draft.base))
+                }
             }
             is MenuEditorIntent.Move -> {
-                if (current.picker != MenuPicker.None || current.saving || current.loadingMenu) {
+                if (current.picker != MenuPicker.None || current.saving || current.loadingMenu ||
+                    intent.expectedRaw != current.menuItems || intent.from !in draft.order.indices || intent.to !in draft.order.indices) {
                     mutableState.update { it.copy(moveRollback = it.moveRollback + 1) }
                 } else {
-                    save(MenuEdit.Move(intent.from, intent.to, intent.expectedRaw))
+                    updateDraft(draft.moved(intent.from, intent.to))
                 }
             }
             MenuEditorIntent.Preview -> if (current.previewEnabled && current.picker == MenuPicker.None) {
                 mutableState.update {
                     it.copy(
-                        platformRequest = PlatformRequest.create(PlatformCommand.PreviewMenu),
+                        platformRequest = PlatformRequest.create(PlatformCommand.PreviewMenu(visibleMenuItems(current.menuItems))),
                         platformLaunchFailed = false,
                     )
                 }
@@ -191,6 +204,36 @@ class MenuEditorViewModel(
      * @return цветной значок или `null`, если требуется запасной ресурс.
      */
     suspend fun icon(packageName: String) = catalog.icon(packageName)
+
+    /** Обе кнопки «Назад» ждут записи до снятия записи навигации и её ViewModel. */
+    fun deferExit(): Boolean {
+        val current = state.value
+        if (current.exitReady) return false
+        if (current.saving) return true
+        if (!draft.dirty) return false
+        if (!current.loadingMenu) save(MenuEdit.Reorder(draft.base, draft.order))
+        return true
+    }
+
+    private fun restoredDraft(): MenuOrderDraft {
+        val base = savedState.get<ArrayList<String>>(DRAFT_BASE).orEmpty()
+        val order = savedState.get<IntArray>(DRAFT_ORDER)?.toList()
+        return if (order != null && order.sorted() == base.indices.toList()) MenuOrderDraft(base, order)
+            else MenuOrderDraft(base)
+    }
+
+    private fun updateDraft(next: MenuOrderDraft) {
+        draft = next
+        if (next.dirty) {
+            savedState[DRAFT_BASE] = ArrayList(next.base)
+            savedState[DRAFT_ORDER] = next.order.toIntArray()
+        } else {
+            savedState.remove<ArrayList<String>>(DRAFT_BASE)
+            savedState.remove<IntArray>(DRAFT_ORDER)
+        }
+        val keys = menuRowKeys(next.base)
+        mutableState.update { it.copy(menuItems = next.items, rowKeys = next.order.map(keys::get), loadingMenu = false) }
+    }
 
     private fun openPicker(picker: MenuPicker, current: MenuEditorState) {
         val previous = if (picker == MenuPicker.Apps) MenuPicker.Grid else MenuPicker.None
@@ -242,6 +285,12 @@ class MenuEditorViewModel(
         viewModelScope.launch {
             try {
                 val result = withContext(dispatcher) { repository.editMenu(edit) }
+                var orderSaved = edit is MenuEdit.Reorder && result == MenuEditResult.Applied
+                if (edit is MenuEdit.Reorder && result == MenuEditResult.NoChange) {
+                    val latest = withContext(dispatcher) { repository.snapshot().menuItems }
+                    orderSaved = latest == edit.permutation.map(edit.expectedRaw::get)
+                    updateDraft(draft.observed(latest, null))
+                }
                 val closePicker = result == MenuEditResult.Applied && edit is MenuEdit.Add
                 if (closePicker) savedState[PICKER_STEP] = MenuPicker.None.name
                 mutableState.update {
@@ -250,9 +299,9 @@ class MenuEditorViewModel(
                         query = if (closePicker) "" else it.query,
                         visibleApps = if (closePicker) emptyList() else it.visibleApps,
                         saving = false,
+                        editFailed = edit is MenuEdit.Reorder && !orderSaved,
                         editResult = result.takeIf { value -> value != MenuEditResult.Applied },
-                        moveRollback = if (edit is MenuEdit.Move && result != MenuEditResult.Applied)
-                            it.moveRollback + 1 else it.moveRollback,
+                        exitReady = orderSaved,
                     )
                 }
             } catch (cancelled: CancellationException) {
@@ -260,8 +309,7 @@ class MenuEditorViewModel(
             } catch (_: Exception) {
                 ensureActive()
                 mutableState.update {
-                    it.copy(saving = false, editFailed = true,
-                        moveRollback = if (edit is MenuEdit.Move) it.moveRollback + 1 else it.moveRollback)
+                    it.copy(saving = false, editFailed = true)
                 }
             }
         }
@@ -269,5 +317,7 @@ class MenuEditorViewModel(
 
     private companion object {
         const val PICKER_STEP = "menu_editor_picker"
+        const val DRAFT_BASE = "menu_editor_base"
+        const val DRAFT_ORDER = "menu_editor_order"
     }
 }

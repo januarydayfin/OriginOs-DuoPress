@@ -22,7 +22,7 @@ sealed interface PlatformCommand {
     data object TestAction : PlatformCommand
 
     /** Открывает рабочую панель действий из редактора меню. */
-    data object PreviewMenu : PlatformCommand
+    data class PreviewMenu(val items: List<String>) : PlatformCommand
 }
 
 /**

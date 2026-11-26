@@ -36,6 +36,9 @@ import kotlinx.coroutines.withContext
 
 /** Рабочая панель двойного нажатия и предпросмотра в прозрачном окне, в том числе над блокировкой. */
 class MenuActivity : ComponentActivity() {
+    internal companion object {
+        const val EXTRA_PREVIEW_ITEMS = "menu_preview_items"
+    }
     private val handler = Handler(Looper.getMainLooper())
     private lateinit var selection: MenuSelection
     private var closing by mutableStateOf(false)
@@ -80,7 +83,7 @@ class MenuActivity : ComponentActivity() {
                 )
             }
         }
-        lifecycleScope.launch { menuItems = loadMenuItems(this@MenuActivity) }
+        lifecycleScope.launch { menuItems = loadMenuItems(this@MenuActivity, intent.getStringArrayListExtra(EXTRA_PREVIEW_ITEMS)) }
     }
 
     override fun onStop() {
@@ -124,11 +127,12 @@ private fun circleDispatch(appContext: Context): () -> Unit = {
 
 private suspend fun loadMenuItems(
     context: Context,
+    previewItems: List<String>?,
     dispatcher: CoroutineDispatcher = Dispatchers.IO,
 ): List<MenuItemUi> = withContext(dispatcher) {
     val settings = SharedPrefsSettingsRepository(context).snapshot()
     val pm = context.packageManager
-    visibleMenuItems(settings.menuItems).map { id ->
+    visibleMenuItems(previewItems ?: settings.menuItems).map { id ->
         ensureActive()
         val packageName = PrefsHelper.appPackageOf(id)
         val label = when (id) {

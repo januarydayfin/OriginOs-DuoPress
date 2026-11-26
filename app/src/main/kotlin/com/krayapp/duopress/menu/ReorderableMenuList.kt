@@ -15,10 +15,11 @@ import androidx.compose.ui.unit.dp
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
 
-/** Ключ строки — позиция в исходном снимке, даже если два сохранённых ID одинаковы. */
+/** Смена порядка обновляет только порядок ключей в той же LazyColumn. */
 @Composable
 internal fun ReorderableMenuList(
     items: List<String>,
+    rowKeys: List<String>,
     enabled: Boolean,
     moveRollback: Long,
     onMove: (Int, Int, List<String>) -> Unit,
@@ -28,44 +29,41 @@ internal fun ReorderableMenuList(
     val list = rememberLazyListState()
     val move by rememberUpdatedState(onMove)
     val feedback = LocalHapticFeedback.current
-    key(items, moveRollback) {
-        val original = remember { items.indices.toList() }
-        var order by remember { mutableStateOf(original) }
-        var dragging by remember { mutableStateOf<Int?>(null) }
-        var awaitingSnapshot by remember { mutableStateOf(false) }
-        val interactions = remember { MutableInteractionSource() }
-        LaunchedEffect(interactions) {
-            interactions.interactions.collect { event ->
-                if (event is DragInteraction.Stop || event is DragInteraction.Cancel) {
-                    val from = dragging ?: return@collect
-                    val to = order.indexOf(from)
-                    dragging = null
-                    if (event is DragInteraction.Stop && to >= 0 && from != to) {
-                        // Сохраняем видимый порядок вплоть до нового снимка или явного отказа.
-                        awaitingSnapshot = true
-                        move(from, to, items)
-                    } else {
-                        order = original
-                    }
+    val original = remember(items) { items.indices.toList() }
+    var order by remember(rowKeys, moveRollback) { mutableStateOf(original) }
+    var dragging by remember(rowKeys, moveRollback) { mutableStateOf<Int?>(null) }
+    val interactions = remember { MutableInteractionSource() }
+    LaunchedEffect(rowKeys, moveRollback) {
+        interactions.interactions.collect { event ->
+            if (event is DragInteraction.Stop || event is DragInteraction.Cancel) {
+                val from = dragging ?: return@collect
+                val to = order.indexOf(from)
+                dragging = null
+                if (event is DragInteraction.Stop && to >= 0 && from != to) {
+                    move(from, to, items)
+                } else {
+                    order = original
                 }
             }
         }
-        val reorder = rememberReorderableLazyListState(list) { from, to ->
-            if (dragging != null && from.index != to.index) {
-                order = order.toMutableList().apply { add(to.index, removeAt(from.index)) }
-                val tick = if (Build.VERSION.SDK_INT >= 34) HapticFeedbackType.SegmentTick else HapticFeedbackType.VirtualKey
-                feedback.performHapticFeedback(tick)
-            }
+    }
+    val reorder = rememberReorderableLazyListState(list) { from, to ->
+        if (dragging != null && from.index != to.index) {
+            order = order.toMutableList().apply { add(to.index, removeAt(from.index)) }
+            val tick = if (Build.VERSION.SDK_INT >= 34) HapticFeedbackType.SegmentTick else HapticFeedbackType.VirtualKey
+            feedback.performHapticFeedback(tick)
         }
-        LazyColumn(modifier, state = list, contentPadding = PaddingValues(bottom = 92.dp)) {
-            items(order, key = { it }) { rawIndex ->
-                ReorderableItem(reorder, key = rawIndex) {
-                    row(rawIndex, Modifier.draggableHandle(enabled = enabled && !awaitingSnapshot && items.size > 1,
-                        interactionSource = interactions, onDragStarted = {
-                            dragging = rawIndex
-                            feedback.performHapticFeedback(HapticFeedbackType.LongPress)
-                        }))
+    }
+    LazyColumn(modifier, state = list, contentPadding = PaddingValues(bottom = 92.dp)) {
+        items(order, key = { rowKeys[it] }) { rawIndex ->
+            ReorderableItem(reorder, key = rowKeys[rawIndex]) {
+                // Детектор жеста живёт дольше снимка; та же ручка может начать следующий жест с другого индекса.
+                val startDrag by rememberUpdatedState {
+                    dragging = rawIndex
+                    feedback.performHapticFeedback(HapticFeedbackType.LongPress)
                 }
+                row(rawIndex, Modifier.draggableHandle(enabled = enabled && items.size > 1,
+                    interactionSource = interactions, onDragStarted = { startDrag() }))
             }
         }
     }

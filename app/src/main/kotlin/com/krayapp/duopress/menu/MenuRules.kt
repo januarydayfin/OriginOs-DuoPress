@@ -13,6 +13,7 @@ sealed interface MenuEdit {
 
     /** Перемещает элемент в итоговый индекс [to], если сохранённый массив совпадает с [expectedRaw]. */
     data class Move(val from: Int, val to: Int, val expectedRaw: List<String>) : MenuEdit
+    data class Reorder(val expectedRaw: List<String>, val permutation: List<Int>) : MenuEdit
 }
 
 enum class MenuEditResult { Applied, Duplicate, Full, NoChange }
@@ -68,6 +69,11 @@ internal fun <T> applyMenuEdit(
     itemFromId: (String) -> T,
 ): Pair<MenuEditResult, List<T>> {
     val newItems = when (edit) {
+        is MenuEdit.Reorder -> {
+            if (raw.map(idOf) != edit.expectedRaw || edit.permutation.sorted() != raw.indices.toList())
+                return MenuEditResult.NoChange to raw
+            edit.permutation.map(raw::get)
+        }
         is MenuEdit.Add -> {
             val id = edit.id.legacyMenuTrim()
             if (id.isEmpty() || id == PrefsHelper.SPECIAL_MENU) return MenuEditResult.NoChange to raw
