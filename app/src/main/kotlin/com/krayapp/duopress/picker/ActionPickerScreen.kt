@@ -5,6 +5,9 @@ import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -42,23 +45,41 @@ import com.krayapp.duopress.PrefsHelper
 import com.krayapp.duopress.R
 import com.krayapp.duopress.ShortcutAction
 import com.krayapp.duopress.platform.AppEntry
+import com.krayapp.duopress.ui.common.ActionTile
 import com.krayapp.duopress.ui.common.AppIcon
 import com.krayapp.duopress.ui.theme.AppTheme
 
-/** Экран маршрута выбора основного действия; внешний хост выполняет переходы. */
+/**
+ * Показывает плитки выбора действия двойного нажатия и форму ручного ввода пакета.
+ *
+ * @param viewModel источник текущего действия и черновика ручного ввода.
+ * @param onOpenApps открывает список приложений в отдельном маршруте.
+ * @param onOpenShortcuts открывает выбор ярлыка в отдельном маршруте.
+ * @param isActive проверяет, может ли экран ещё принимать действия во время перехода.
+ * @param modifier модификатор прокручиваемой области экрана.
+ */
 @Composable
 fun ActionPickerScreen(
     viewModel: ActionPickerViewModel,
+    onOpenApps: () -> Unit,
     onOpenShortcuts: () -> Unit,
+    isActive: () -> Boolean,
     modifier: Modifier = Modifier,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    ActionPickerContent(state, viewModel::onIntent, viewModel::icon, onOpenShortcuts, modifier)
+    ActionPickerContent(
+        state = state,
+        onIntent = { if (isActive()) viewModel.onIntent(it) },
+        onOpenApps = onOpenApps,
+        onOpenShortcuts = onOpenShortcuts,
+        modifier = modifier,
+    )
 }
 
 /**
  * Ленивый список результатов для пикеров и редактора. Владелец списка передаёт уже отфильтрованные
  * записи, и обрабатывает выбор по имени пакета независимо от доступности значка.
+ * [selectedPackage] выделяет текущий пакет, не запрещая его повторный выбор.
  */
 @Composable
 fun AppSearchList(
@@ -68,10 +89,11 @@ fun AppSearchList(
     loadIcon: suspend (String) -> ImageBitmap? = { null },
     alreadyAdded: (String) -> Boolean = { false },
     enabled: Boolean = true,
+    selectedPackage: String? = null,
 ) {
     LazyColumn(modifier = modifier) {
         if (entries.isEmpty()) item("empty") { PickerMessage(stringResource(R.string.picker_no_apps)) }
-        appSearchItems(entries, onPicked, loadIcon, enabled = enabled, alreadyAdded = alreadyAdded)
+        appSearchItems(entries, onPicked, loadIcon, selectedPackage, enabled, alreadyAdded)
     }
 }
 
@@ -79,34 +101,55 @@ fun AppSearchList(
 private fun ActionPickerContent(
     state: ActionPickerState,
     onIntent: (ActionPickerIntent) -> Unit,
-    loadIcon: suspend (String) -> ImageBitmap?,
+    onOpenApps: () -> Unit,
     onOpenShortcuts: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val canPick = state.selection != PickerSelection.Saving && !state.selectionComplete
-    val currentPackage = PrefsHelper.appPackageOf(state.targetId) ?: state.targetId
+    val targetId = state.targetId
+    val shortcutSelected = ShortcutAction.isAction(targetId)
+    val appSelected = !targetId.isNullOrBlank() && !targetId.startsWith(PrefsHelper.SPECIAL_PREFIX) && !shortcutSelected
     LazyColumn(
         modifier = modifier.fillMaxSize().imePadding(),
         contentPadding = PaddingValues(vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        item("presets") { PickerHeading(stringResource(R.string.picker_section_specials)) }
-        items(presetRows, key = { it.preset.id }, contentType = { "preset" }) { row ->
-            PickerChoice(
-                label = stringResource(row.label),
-                selected = row.preset.id == state.targetId,
-                enabled = canPick,
-                onClick = { onIntent(ActionPickerIntent.PickPreset(row.preset)) },
-                leading = { PickerIcon(row.icon) },
-            )
+        item("categories") {
+            PickerTileRow {
+                ActionTile(
+                    label = R.string.picker_section_apps,
+                    icon = R.drawable.ic_action_app,
+                    modifier = Modifier.weight(1f),
+                    enabled = canPick,
+                    opensPicker = true,
+                    selected = appSelected,
+                    onClick = onOpenApps,
+                )
+                ActionTile(
+                    label = R.string.name_shortcuts,
+                    icon = R.drawable.ic_action_shortcut,
+                    modifier = Modifier.weight(1f),
+                    enabled = canPick,
+                    opensPicker = true,
+                    selected = shortcutSelected,
+                    onClick = onOpenShortcuts,
+                )
+            }
         }
-        item("shortcuts", contentType = "preset") {
-            PickerChoice(
-                label = stringResource(R.string.name_shortcuts),
-                selected = ShortcutAction.isAction(state.targetId),
-                enabled = canPick,
-                onClick = onOpenShortcuts,
-                leading = { PickerIcon(R.drawable.ic_action_shortcut) },
-            )
+        items(presetTileRows, key = { it.first().preset.id }, contentType = { "preset_row" }) { row ->
+            PickerTileRow {
+                row.forEach { tile ->
+                    ActionTile(
+                        label = tile.label,
+                        icon = tile.icon,
+                        modifier = Modifier.weight(1f),
+                        enabled = canPick,
+                        selected = tile.preset.id == state.targetId,
+                        onClick = { onIntent(ActionPickerIntent.PickPreset(tile.preset)) },
+                    )
+                }
+                if (row.size == 1) Spacer(Modifier.weight(1f))
+            }
         }
         if (state.selection == PickerSelection.Failed) item("saveError") {
             PickerMessage(stringResource(R.string.picker_save_failed))
@@ -138,31 +181,16 @@ private fun ActionPickerContent(
                 }
             }
         }
-        item("apps") { PickerHeading(stringResource(R.string.picker_section_apps)) }
-        item("search") {
-            PickerSearchField(state.query, stringResource(R.string.picker_search_hint)) {
-                onIntent(ActionPickerIntent.Search(it))
-            }
-        }
-        when {
-            state.loadingApps -> item("loading") { PickerMessage(stringResource(R.string.picker_loading_apps)) }
-            state.appsFailed -> item("appsError") {
-                PickerMessage(
-                    stringResource(R.string.picker_apps_failed),
-                    onRetry = { onIntent(ActionPickerIntent.ReloadApps) },
-                )
-            }
-            state.filteringApps -> item("filtering") { PickerMessage(stringResource(R.string.picker_filtering_apps)) }
-            state.visibleApps.isEmpty() -> item("empty") { PickerMessage(stringResource(R.string.picker_no_apps)) }
-            else -> appSearchItems(
-                state.visibleApps,
-                onPicked = { onIntent(ActionPickerIntent.PickApp(it, state.query)) },
-                loadIcon = loadIcon,
-                selectedPackage = currentPackage,
-                enabled = canPick,
-            )
-        }
     }
+}
+
+@Composable
+private fun PickerTileRow(content: @Composable RowScope.() -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        content = content,
+    )
 }
 
 private fun LazyListScope.appSearchItems(
@@ -240,38 +268,28 @@ internal fun PickerMessage(text: String, modifier: Modifier = Modifier, onRetry:
 }
 
 @Composable
-private fun PickerHeading(text: String) {
-    Text(
-        text,
-        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp).semantics { heading() },
-        style = MaterialTheme.typography.titleMedium,
-    )
-}
-
-@Composable
 private fun PickerIcon(@DrawableRes icon: Int) {
     Icon(painterResource(icon), contentDescription = null, modifier = Modifier.size(24.dp))
 }
 
 private data class PresetRow(val preset: ActionPreset, @StringRes val label: Int, @DrawableRes val icon: Int)
 
-private val presetRows = listOf(
+private val presetTileRows = listOf(
     PresetRow(ActionPreset.Torch, R.string.name_torch, R.drawable.ic_action_torch),
     PresetRow(ActionPreset.Camera, R.string.name_camera, R.drawable.ic_action_camera),
     PresetRow(ActionPreset.Vpn, R.string.name_vpn, R.drawable.ic_action_vpn),
     PresetRow(ActionPreset.Menu, R.string.name_menu, R.drawable.ic_action_menu),
     PresetRow(ActionPreset.CircleToSearch, R.string.name_cts, R.drawable.ic_action_search),
-)
+).chunked(2)
 
 @Preview(showBackground = true)
 @Composable
 private fun ActionPickerPreview() {
-    val example = AppEntry("com.example.app", "Example")
     AppTheme {
         ActionPickerContent(
-            ActionPickerState(targetId = "special:camera", visibleApps = listOf(example), loadingApps = false),
+            ActionPickerState(targetId = "special:camera"),
             onIntent = {},
-            loadIcon = { null },
+            onOpenApps = {},
             onOpenShortcuts = {},
         )
     }

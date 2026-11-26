@@ -68,6 +68,7 @@ class AppNavigator internal constructor(private val navController: NavHostContro
     }
 
     internal fun actionsEntry(): NavBackStackEntry = navController.getBackStackEntry<AppRoute.Actions>()
+    internal fun actionPickerEntry(): NavBackStackEntry = navController.getBackStackEntry<AppRoute.ActionPicker>()
     internal fun menuEditorEntry(): NavBackStackEntry = navController.getBackStackEntry<AppRoute.MenuEditor>()
 
     internal fun completeMenuAddition(entry: NavBackStackEntry, claim: (Boolean) -> Boolean,
@@ -192,6 +193,7 @@ fun AppNavHost(
             composable<AppRoute.Settings> { renderDestination(AppRoute.Settings, it, navigator) }
             composable<AppRoute.Diagnostics> { renderDestination(AppRoute.Diagnostics, it, navigator) }
             composable<AppRoute.ActionPicker> { renderDestination(AppRoute.ActionPicker, it, navigator) }
+            composable<AppRoute.DoublePressAppPicker> { renderDestination(AppRoute.DoublePressAppPicker, it, navigator) }
             composable<AppRoute.ShortcutPicker> { renderDestination(AppRoute.ShortcutPicker, it, navigator) }
             composable<AppRoute.MenuShortcutPicker> { renderDestination(AppRoute.MenuShortcutPicker, it, navigator) }
             composable<AppRoute.MenuAppPicker> { renderDestination(AppRoute.MenuAppPicker, it, navigator) }
@@ -243,6 +245,7 @@ private val rootSections = listOf(
 
 private val nestedTitles = mapOf(
     AppRoute.ActionPicker to R.string.picker_title_main,
+    AppRoute.DoublePressAppPicker to R.string.picker_section_apps,
     AppRoute.ShortcutPicker to R.string.shortcut_picker_title,
     AppRoute.MenuShortcutPicker to R.string.shortcut_picker_title,
     AppRoute.MenuAppPicker to R.string.picker_section_apps,
