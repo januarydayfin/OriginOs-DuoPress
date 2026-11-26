@@ -41,6 +41,7 @@ import com.krayapp.duopress.menu.MenuPicker
 import com.krayapp.duopress.picker.ActionPickerIntent
 import com.krayapp.duopress.picker.ActionPickerScreen
 import com.krayapp.duopress.picker.ActionPickerViewModel
+import com.krayapp.duopress.picker.DoublePressAppPickerScreen
 import com.krayapp.duopress.picker.PickerSelection
 import com.krayapp.duopress.picker.ShortcutPickerIntent
 import com.krayapp.duopress.picker.ShortcutPickerScreen
@@ -96,6 +97,10 @@ private class LauncherSession(val dependencies: AppDependencies) : ViewModel() {
             dependencies.menuShortcutModels else dependencies.routeModels)[T::class.java]
 
     fun back(entry: NavBackStackEntry, parent: NavBackStackEntry): Boolean {
+        if (entry.destination.hasRoute<AppRoute.DoublePressAppPicker>()) {
+            val selection = model<ActionPickerViewModel>(parent).state.value.selection
+            if (selection == PickerSelection.Saving || selection == PickerSelection.Complete) return true
+        }
         if (entry.destination.hasRoute<AppRoute.MenuAppPicker>()) {
             val editor = model<MenuEditorViewModel>(parent)
             if (editor.state.value.saving) return true
@@ -223,19 +228,33 @@ private fun LauncherContent(session: LauncherSession, host: PlatformRequestHost)
                 }
                 MenuAppPickerScreen(state, editor::onIntent, editor::icon)
             }
-            AppRoute.ActionPicker -> {
-                val model = session.model<ActionPickerViewModel>(entry)
+            AppRoute.ActionPicker, AppRoute.DoublePressAppPicker -> {
+                val pickerEntry = remember(entry) {
+                    if (route == AppRoute.ActionPicker) entry else navigator.actionPickerEntry()
+                }
+                val model = session.model<ActionPickerViewModel>(pickerEntry)
+                val isActive = { navigator.isResumed(entry) }
                 CompleteSelection(
                     entry, navigator, model.state, { it.selectionComplete }, model::claimSelectionCompletion, session::exit,
                 )
-                ActionPickerScreen(model, onOpenShortcuts = {
-                    val selection = model.state.value.selection
-                    if (navigator.isResumed(entry) &&
-                        selection != PickerSelection.Saving && selection != PickerSelection.Complete
-                    ) {
-                        navigator.open(AppRoute.ShortcutPicker)
+                if (route == AppRoute.ActionPicker) {
+                    val openPicker: (AppRoute) -> Unit = { destination ->
+                        val selection = model.state.value.selection
+                        if (isActive() &&
+                            selection != PickerSelection.Saving && selection != PickerSelection.Complete
+                        ) {
+                            navigator.open(destination)
+                        }
                     }
-                })
+                    ActionPickerScreen(
+                        model,
+                        onOpenApps = { openPicker(AppRoute.DoublePressAppPicker) },
+                        onOpenShortcuts = { openPicker(AppRoute.ShortcutPicker) },
+                        isActive = isActive,
+                    )
+                } else {
+                    DoublePressAppPickerScreen(model, isActive = isActive)
+                }
             }
             AppRoute.ShortcutPicker, AppRoute.MenuShortcutPicker -> {
                 val model = session.model<ShortcutPickerViewModel>(entry)

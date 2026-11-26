@@ -7,6 +7,7 @@ sealed interface AppRoute {
     @Serializable data object Settings : AppRoute
     @Serializable data object Diagnostics : AppRoute
     @Serializable data object ActionPicker : AppRoute
+    @Serializable data object DoublePressAppPicker : AppRoute
     @Serializable data object ShortcutPicker : AppRoute
     @Serializable data object MenuShortcutPicker : AppRoute
     @Serializable data object MenuAppPicker : AppRoute

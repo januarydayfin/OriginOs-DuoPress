@@ -18,6 +18,7 @@ import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.hasContentDescription
@@ -107,6 +108,122 @@ class ComposeAppIntegrationTest {
         systemBack()
         // Back from the launcher root backgrounds the task on Android 12+, and finishes on older versions.
         compose.waitUntil(5_000) { !scenario.state.isAtLeast(Lifecycle.State.STARTED) }
+    }
+
+    @Test
+    fun doublePressAppsBackKeepsCurrentActionAndManualDraft() {
+        assertTrue(prefs.edit().putString("target_package", "special:camera").commit())
+        launch()
+        openActionPicker()
+        compose.onNode(text(R.string.name_camera)).assertIsSelected()
+        compose.onNode(text(R.string.picker_search_hint)).assertDoesNotExist()
+
+        val manual = hasSetTextAction() and text(R.string.picker_manual_package_hint)
+        compose.onNode(hasScrollAction()).performScrollToNode(manual)
+        compose.onNode(manual).performTextInput("org.example.draft")
+        val apps = text(R.string.picker_section_apps) and hasClickAction()
+        compose.onNode(hasScrollAction()).performScrollToNode(apps)
+        compose.onNode(apps).performClick()
+        compose.onNode(heading(R.string.picker_section_apps)).assertIsDisplayed()
+        clickBack()
+
+        compose.onNode(heading(R.string.picker_title_main)).assertIsDisplayed()
+        compose.onNode(hasScrollAction()).performScrollToNode(manual)
+        compose.onNode(manual and hasText("org.example.draft")).assertIsDisplayed()
+        assertEquals("special:camera", prefs.getString("target_package", null))
+    }
+
+    @Test
+    fun doublePressAppPickerRestoresSearchAndSelection() {
+        val pkg = "com.android.settings"
+        assertTrue(prefs.edit().putString("target_package", pkg).commit())
+        launch()
+        openActionPicker()
+        compose.onNode(text(R.string.picker_section_apps) and hasClickAction()).assertIsSelected()
+        val row = searchDoublePressApp(pkg)
+        compose.onNode(row).assertIsSelected()
+
+        scenario.recreate()
+
+        compose.onNode(heading(R.string.picker_section_apps)).assertIsDisplayed()
+        compose.onNode(hasSetTextAction() and hasText(pkg)).assertIsDisplayed()
+        compose.waitUntil(5_000) { compose.onAllNodes(row).fetchSemanticsNodes().isNotEmpty() }
+        compose.onNode(row).assertIsSelected()
+    }
+
+    @Test
+    fun doublePressAppSelectionReturnsToActionsOnce() {
+        assertTrue(prefs.edit().putString("target_package", "special:camera").commit())
+        launch()
+        openActionPicker()
+        val row = searchDoublePressApp("com.android.settings")
+        val pick = checkNotNull(compose.onNode(row).fetchSemanticsNode().config[SemanticsActions.OnClick].action)
+        val back = checkNotNull(
+            compose.onNode(hasContentDescription(context.getString(R.string.btn_back)))
+                .fetchSemanticsNode().config[SemanticsActions.OnClick].action,
+        )
+
+        compose.runOnIdle { pick(); pick(); back() }
+
+        compose.waitUntil(5_000) { prefs.getString("target_package", null) == "com.android.settings" }
+        assertActions()
+        compose.onNode(heading(R.string.picker_section_apps)).assertDoesNotExist()
+        compose.onNode(heading(R.string.picker_title_main)).assertDoesNotExist()
+    }
+
+    @Test
+    fun staleAppsClickCannotNavigateInTheSameTurnAsActionSave() {
+        assertTrue(prefs.edit().putString("target_package", "special:camera").commit())
+        launch()
+        openActionPicker()
+        val selectTorch = checkNotNull(
+            compose.onNode(text(R.string.name_torch)).fetchSemanticsNode().config[SemanticsActions.OnClick].action,
+        )
+        val openApps = checkNotNull(
+            compose.onNode(text(R.string.picker_section_apps) and hasClickAction())
+                .fetchSemanticsNode().config[SemanticsActions.OnClick].action,
+        )
+
+        compose.runOnIdle { selectTorch(); openApps() }
+
+        compose.waitUntil(5_000) { prefs.getString("target_package", null) == "special:torch" }
+        assertActions()
+        compose.onNode(heading(R.string.picker_section_apps)).assertDoesNotExist()
+    }
+
+    @Test
+    fun stalePresetClickCannotSaveAfterOpeningApps() {
+        assertTrue(prefs.edit().putString("target_package", "special:camera").commit())
+        launch()
+        openActionPicker()
+        val selectTorch = checkNotNull(
+            compose.onNode(text(R.string.name_torch)).fetchSemanticsNode().config[SemanticsActions.OnClick].action,
+        )
+        val openApps = checkNotNull(
+            compose.onNode(text(R.string.picker_section_apps) and hasClickAction())
+                .fetchSemanticsNode().config[SemanticsActions.OnClick].action,
+        )
+
+        compose.runOnIdle { openApps(); selectTorch() }
+
+        compose.onNode(heading(R.string.picker_section_apps)).assertIsDisplayed()
+        clickBack()
+        compose.onNode(heading(R.string.picker_title_main)).assertIsDisplayed()
+        assertEquals("special:camera", prefs.getString("target_package", null))
+    }
+
+    @Test
+    fun manualDoublePressPackageRemainsOnTileScreen() {
+        launch()
+        openActionPicker()
+        val manual = hasSetTextAction() and text(R.string.picker_manual_package_hint)
+        compose.onNode(hasScrollAction()).performScrollToNode(manual)
+        compose.onNode(manual).performTextInput("  org.example.manual  ")
+        compose.onNode(hasScrollAction()).performScrollToNode(text(R.string.picker_manual_confirm))
+        compose.onNode(text(R.string.picker_manual_confirm)).performClick()
+
+        compose.waitUntil(5_000) { prefs.getString("target_package", null) == "org.example.manual" }
+        assertActions()
     }
 
     @Test
@@ -639,6 +756,15 @@ class ComposeAppIntegrationTest {
     private fun openActionPicker() {
         compose.onNode(text(R.string.actions_double_press)).performClick()
         compose.onNode(heading(R.string.picker_title_main)).assertIsDisplayed()
+    }
+
+    private fun searchDoublePressApp(packageName: String): SemanticsMatcher {
+        compose.onNode(text(R.string.picker_section_apps) and hasClickAction()).performClick()
+        compose.onNode(heading(R.string.picker_section_apps)).assertIsDisplayed()
+        compose.onNode(hasSetTextAction() and text(R.string.picker_search_hint)).performTextInput(packageName)
+        val row = hasText(packageName) and hasSetTextAction().not()
+        compose.waitUntil(5_000) { compose.onAllNodes(row).fetchSemanticsNodes().isNotEmpty() }
+        return row
     }
 
     private fun openShortcutPicker() {
