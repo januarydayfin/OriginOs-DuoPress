@@ -359,7 +359,9 @@ class ComposeAppIntegrationTest {
                 sendPermissionRequest = { sentCodes += it },
             )
             val shizuku = FakeShizuku(permissionGateway = gateway)
-            MainActivity.dependenciesOverride = { AppDependencies(it, shortcuts = gateway, shortcutControl = shizuku) }
+            MainActivity.dependenciesOverride = {
+                AppDependencies(it, shortcuts = gateway, shortcutControl = shizuku, isSupportedDevice = { true })
+            }
             try {
                 launch()
                 requestShortcutPermission()
@@ -556,7 +558,9 @@ class ComposeAppIntegrationTest {
                 override suspend fun shortcuts(packageName: String) =
                     listOf(ShortcutEntry(packageName, "home", "Shortcut for menu", ShortcutKind.Dynamic, 0))
             }
-            MainActivity.dependenciesOverride = { AppDependencies(it, shortcuts = gateway, shortcutControl = FakeShizuku()) }
+            MainActivity.dependenciesOverride = {
+                AppDependencies(it, shortcuts = gateway, shortcutControl = FakeShizuku(), isSupportedDevice = { true })
+            }
             launch()
             compose.onNode(text(R.string.card_menu_title)).performScrollTo().performClick()
             val plus = hasContentDescription(context.getString(R.string.editor_add_action))
@@ -680,7 +684,7 @@ class ComposeAppIntegrationTest {
     }
 
     private fun useHandlerProbe(probe: HandlerProbe) {
-        MainActivity.dependenciesOverride = { AppDependencies(it, handlerProbe = probe) }
+        MainActivity.dependenciesOverride = { AppDependencies(it, handlerProbe = probe, isSupportedDevice = { true }) }
     }
 
     private fun awaitOtherHandler(): SemanticsMatcher {
@@ -734,7 +738,9 @@ class ComposeAppIntegrationTest {
     }
 
     private fun fakeShizuku() = FakeShizuku().also { fake ->
-        MainActivity.dependenciesOverride = { AppDependencies(it, shortcuts = fake, shortcutControl = fake) }
+        MainActivity.dependenciesOverride = {
+            AppDependencies(it, shortcuts = fake, shortcutControl = fake, isSupportedDevice = { true })
+        }
     }
 
     private fun requestShortcutPermission() {
@@ -750,6 +756,9 @@ class ComposeAppIntegrationTest {
     }
 
     private fun launch() {
+        if (MainActivity.dependenciesOverride == null) {
+            MainActivity.dependenciesOverride = { AppDependencies(it, isSupportedDevice = { true }) }
+        }
         scenario = ActivityScenario.launch(MainActivity::class.java)
     }
 

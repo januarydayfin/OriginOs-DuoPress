@@ -148,6 +148,9 @@
     <string name="picker_app_expanded">Развёрнуто</string>
     <string name="picker_app_collapsed">Свёрнуто</string>
     <string name="btn_close">Закрыть</string>
+    <string name="vendor_warning_title">Неподдерживаемое устройство</string>
+    <string name="vendor_warning_message">Приложение предназначено для устройств vivo и iQOO. На других устройствах двойное нажатие кнопки питания может не работать.</string>
+    <string name="vendor_warning_opt_out">Не показывать снова</string>
 
     <!-- Пикер ярлыков приложений -->
     <string name="shortcut_picker_title">Выбор ярлыка</string>

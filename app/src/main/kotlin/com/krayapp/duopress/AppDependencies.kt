@@ -1,6 +1,8 @@
 package com.krayapp.duopress
 
 import android.content.Context
+import android.os.Build
+import androidx.core.content.edit
 import androidx.lifecycle.createSavedStateHandle
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
@@ -20,6 +22,7 @@ import com.krayapp.duopress.platform.AndroidShortcutGateway
 import com.krayapp.duopress.platform.HandlerProbe
 import com.krayapp.duopress.platform.ShortcutControl
 import com.krayapp.duopress.platform.ShortcutGateway
+import com.krayapp.duopress.platform.isSupportedVendor
 import com.krayapp.duopress.settings.SettingsViewModel
 
 /** Один набор зависимостей launcher, без ссылки на окно или Activity. */
@@ -28,6 +31,9 @@ internal class AppDependencies(
     shortcuts: ShortcutGateway? = null,
     shortcutControl: ShortcutControl? = null,
     handlerProbe: HandlerProbe = AndroidHandlerProbe(context.applicationContext),
+    private val isSupportedDevice: () -> Boolean = {
+        isSupportedVendor(Build.MANUFACTURER, Build.BRAND)
+    },
 ) {
     private val appContext = context.applicationContext
     private val repository = SharedPrefsSettingsRepository(appContext)
@@ -36,6 +42,13 @@ internal class AppDependencies(
     private val labels = LegacyActionLabelResolver(appContext)
     private val androidShortcuts by lazy { AndroidShortcutGateway(appContext) }
     val shortcutControl = shortcutControl ?: AndroidShortcutControl { androidShortcuts }
+
+    fun shouldWarnAboutVendor(): Boolean = !isSupportedDevice() &&
+        !PrefsHelper.preferences(appContext).getBoolean(SKIP_VENDOR_WARNING, false)
+
+    fun skipVendorWarning() {
+        PrefsHelper.preferences(appContext).edit { putBoolean(SKIP_VENDOR_WARNING, true) }
+    }
 
     val menuShortcutModels = viewModelFactory {
         initializer {
@@ -51,5 +64,9 @@ internal class AppDependencies(
         initializer { ActionPickerViewModel(repository, catalog, savedStateHandle = createSavedStateHandle()) }
         initializer { ShortcutPickerViewModel(repository, catalog, shortcuts ?: androidShortcuts, createSavedStateHandle()) }
         initializer { MenuEditorViewModel(repository, catalog, savedState = createSavedStateHandle()) }
+    }
+
+    private companion object {
+        const val SKIP_VENDOR_WARNING = "skip_unsupported_vendor_warning"
     }
 }

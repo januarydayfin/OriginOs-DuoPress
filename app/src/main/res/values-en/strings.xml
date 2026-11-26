@@ -144,6 +144,9 @@
     <string name="picker_app_expanded">Expanded</string>
     <string name="picker_app_collapsed">Collapsed</string>
     <string name="btn_close">Close</string>
+    <string name="vendor_warning_title">Unsupported device</string>
+    <string name="vendor_warning_message">This app is designed for vivo and iQOO devices. Double-pressing the power button may not work on other devices.</string>
+    <string name="vendor_warning_opt_out">Don’t show again</string>
 
     <!-- App shortcut picker -->
     <string name="shortcut_picker_title">Choose a shortcut</string>

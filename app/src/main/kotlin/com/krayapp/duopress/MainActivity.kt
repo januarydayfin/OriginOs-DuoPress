@@ -10,7 +10,10 @@ import androidx.annotation.VisibleForTesting
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.ui.res.painterResource
@@ -54,6 +57,7 @@ import com.krayapp.duopress.platform.PlatformRequest
 import com.krayapp.duopress.platform.PlatformRequestHost
 import com.krayapp.duopress.settings.SettingsScreen
 import com.krayapp.duopress.settings.SettingsViewModel
+import com.krayapp.duopress.ui.common.VendorWarningDialog
 import com.krayapp.duopress.ui.navigation.AppNavHost
 import com.krayapp.duopress.ui.navigation.AppNavigator
 import com.krayapp.duopress.ui.navigation.AppRoute
@@ -137,6 +141,7 @@ private class LauncherSession(val dependencies: AppDependencies) : ViewModel() {
 
 @Composable
 private fun LauncherContent(session: LauncherSession, host: PlatformRequestHost) {
+    var warnAboutVendor by rememberSaveable { mutableStateOf(session.dependencies.shouldWarnAboutVendor()) }
     AppNavHost(onBack = session::back, menuEditorActions = { entry ->
         val model = session.model<MenuEditorViewModel>(entry)
         val state by model.state.collectAsStateWithLifecycle()
@@ -282,6 +287,12 @@ private fun LauncherContent(session: LauncherSession, host: PlatformRequestHost)
             }
         }
     })
+    if (warnAboutVendor) {
+        VendorWarningDialog(onClose = { doNotShowAgain ->
+            if (doNotShowAgain) session.dependencies.skipVendorWarning()
+            warnAboutVendor = false
+        })
+    }
 }
 
 @Composable
