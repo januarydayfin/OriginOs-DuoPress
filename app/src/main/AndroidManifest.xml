@@ -69,7 +69,7 @@
             android:exported="true"
             android:label="@string/swipe_activity_label"
             android:theme="@style/TransparentSwipeTheme"
-            android:taskAffinity="com.vivotomirpay.stub.swipe"
+            android:taskAffinity="${applicationId}.swipe"
             android:excludeFromRecents="true"
             android:noHistory="true"
             android:launchMode="singleTask"
@@ -108,7 +108,7 @@
             android:excludeFromRecents="true"
             android:noHistory="true"
             android:launchMode="singleTask"
-            android:taskAffinity="com.vivotomirpay.stub.menu"
+            android:taskAffinity="${applicationId}.menu"
             android:configChanges="keyboardHidden|orientation|screenLayout|screenSize|smallestScreenSize|uiMode|density"
             android:theme="@style/MenuTheme" />
 

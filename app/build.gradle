@@ -6,11 +6,11 @@ plugins {
 }
 
 android {
-    namespace 'com.vivotomirpay.stub'
+    namespace 'com.krayapp.duopress'
     compileSdk 36
 
     defaultConfig {
-        applicationId "com.vivotomirpay.stub"
+        applicationId "com.krayapp.duopress"
         minSdk 25
         targetSdk 35
         versionCode 206

@@ -1,0 +1,186 @@
+package com.krayapp.duopress.ui.navigation
+
+import androidx.activity.compose.BackHandler
+import androidx.annotation.StringRes
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.lifecycle.Lifecycle
+import androidx.navigation.NavBackStackEntry
+import androidx.navigation.NavDestination.Companion.hasRoute
+import androidx.navigation.NavHostController
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.compose.rememberNavController
+import com.krayapp.duopress.R
+import com.krayapp.duopress.ui.theme.AppTheme
+
+class AppNavigator internal constructor(private val navController: NavHostController) {
+    fun open(route: AppRoute) {
+        if (navController.currentDestination?.hasRoute(route::class) == true) return
+        val isRoot = rootSections.any { it.route == route }
+        navController.navigate(route) {
+            launchSingleTop = true
+            if (isRoot) {
+                popUpTo<AppRoute.Actions> { saveState = true }
+                restoreState = true
+            }
+        }
+    }
+
+    internal fun actionsEntry(): NavBackStackEntry = navController.getBackStackEntry<AppRoute.Actions>()
+
+    internal fun isResumed(entry: NavBackStackEntry): Boolean =
+        navController.currentBackStackEntry === entry && entry.lifecycle.currentState == Lifecycle.State.RESUMED
+
+    internal fun back(entry: NavBackStackEntry, onBack: (NavBackStackEntry) -> Boolean) {
+        if (navController.currentBackStackEntry !== entry) return
+        if (navController.previousBackStackEntry != null && !onBack(entry)) navController.popBackStack()
+    }
+
+    internal fun completeActionSelection(
+        entry: NavBackStackEntry,
+        claim: (isActiveEntry: Boolean) -> Boolean,
+        onExit: (NavBackStackEntry) -> Unit,
+    ) {
+        if (!isResumed(entry) || !claim(true)) return
+        onExit(entry)
+        navController.previousBackStackEntry
+            ?.takeIf { it.destination.hasRoute<AppRoute.ActionPicker>() }
+            ?.let(onExit)
+        navController.popBackStack<AppRoute.Actions>(inclusive = false)
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AppNavHost(
+    render: @Composable (AppRoute, NavBackStackEntry, AppNavigator) -> Unit,
+    modifier: Modifier = Modifier,
+    onBack: (NavBackStackEntry) -> Boolean = { false },
+) {
+    val navController = rememberNavController()
+    val navigator = remember(navController) { AppNavigator(navController) }
+    val renderDestination by rememberUpdatedState(render)
+    val entry by navController.currentBackStackEntryAsState()
+    val destination = entry?.destination
+    val selectedSection = rootSections.firstOrNull { destination?.hasRoute(it.route::class) == true }
+    val nestedTitle = nestedTitles.entries.firstOrNull { destination?.hasRoute(it.key::class) == true }?.value
+
+    Scaffold(
+        modifier = modifier,
+        contentWindowInsets = WindowInsets.safeDrawing,
+        topBar = {
+            if (nestedTitle != null) {
+                TopAppBar(
+                    title = { Text(stringResource(nestedTitle), Modifier.semantics { heading() }) },
+                    windowInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Top),
+                    navigationIcon = {
+                        IconButton(onClick = { entry?.let { navigator.back(it, onBack) } }) {
+                            Icon(
+                                Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = stringResource(R.string.btn_back),
+                            )
+                        }
+                    },
+                )
+            }
+        },
+        bottomBar = {
+            if (selectedSection != null) {
+                NavigationBar(
+                    windowInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom),
+                ) {
+                    rootSections.forEach { section ->
+                        NavigationBarItem(
+                            selected = section == selectedSection,
+                            onClick = { navigator.open(section.route) },
+                            icon = { Icon(section.icon, contentDescription = null) },
+                            label = { Text(stringResource(section.label), textAlign = TextAlign.Center) },
+                        )
+                    }
+                }
+            }
+        },
+    ) { innerPadding ->
+        NavHost(
+            navController = navController,
+            startDestination = AppRoute.Actions,
+            modifier = Modifier.fillMaxSize().padding(innerPadding).consumeWindowInsets(innerPadding),
+            enterTransition = { EnterTransition.None },
+            exitTransition = { ExitTransition.None },
+            popEnterTransition = { EnterTransition.None },
+            popExitTransition = { ExitTransition.None },
+        ) {
+            composable<AppRoute.Actions> { renderDestination(AppRoute.Actions, it, navigator) }
+            composable<AppRoute.Settings> { renderDestination(AppRoute.Settings, it, navigator) }
+            composable<AppRoute.Diagnostics> { renderDestination(AppRoute.Diagnostics, it, navigator) }
+            composable<AppRoute.ActionPicker> { renderDestination(AppRoute.ActionPicker, it, navigator) }
+            composable<AppRoute.ShortcutPicker> { renderDestination(AppRoute.ShortcutPicker, it, navigator) }
+            composable<AppRoute.Lockscreen> { renderDestination(AppRoute.Lockscreen, it, navigator) }
+            composable<AppRoute.MenuEditor> { renderDestination(AppRoute.MenuEditor, it, navigator) }
+        }
+        // Use the same pre-pop path for Android Back and the app bar, not disposal on rotation.
+        BackHandler(enabled = nestedTitle != null) {
+            entry?.let { navigator.back(it, onBack) }
+        }
+    }
+}
+
+private data class RootSection(
+    val route: AppRoute,
+    @StringRes val label: Int,
+    val icon: ImageVector,
+)
+
+private val rootSections = listOf(
+    RootSection(AppRoute.Actions, R.string.nav_actions, Icons.Filled.PlayArrow),
+    RootSection(AppRoute.Settings, R.string.nav_settings, Icons.Filled.Settings),
+    RootSection(AppRoute.Diagnostics, R.string.nav_diagnostics, Icons.Filled.Info),
+)
+
+private val nestedTitles = mapOf(
+    AppRoute.ActionPicker to R.string.picker_title_main,
+    AppRoute.ShortcutPicker to R.string.shortcut_picker_title,
+    AppRoute.Lockscreen to R.string.card_lock_title,
+    AppRoute.MenuEditor to R.string.editor_menu_title,
+)
+
+@Preview(showBackground = true)
+@Composable
+private fun AppNavHostPreview() {
+    AppTheme {
+        AppNavHost(render = { _, _, _ -> Text(stringResource(R.string.app_name)) })
+    }
+}

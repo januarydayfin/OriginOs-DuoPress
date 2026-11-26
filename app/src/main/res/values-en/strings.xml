@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Double Power Key</string>
-    <string name="swipe_activity_label">Double Power Key</string>
+    <string name="app_name">DuoPress</string>
+    <string name="swipe_activity_label">DuoPress</string>
 
     <!-- Header -->
-    <string name="header_title">Double Power Key</string>
-    <string name="header_subtitle">Remap the double power key press on Vivo / iQOO phones (OriginOS / FuntouchOS)</string>
+    <string name="header_title">DuoPress</string>
+    <string name="header_subtitle">Remap the power-button double press on vivo and iQOO phones running OriginOS</string>
 
     <!-- Navigation -->
     <string name="nav_actions">Actions</string>
@@ -149,7 +149,7 @@
     <string name="shortcut_picker_loading_error">Failed to load shortcuts: %1$s</string>
     <string name="shortcut_shizuku_unavailable">Shortcuts require Shizuku to be installed and started via ADB</string>
     <string name="shortcut_shizuku_pre_v11">Shortcuts require Shizuku API 11 or newer</string>
-    <string name="shortcut_permission_required">Grant Double Power Key access in Shizuku</string>
+    <string name="shortcut_permission_required">Grant DuoPress access in Shizuku</string>
     <string name="shortcut_permission_denied">Shizuku permission was not granted</string>
     <string name="shortcut_picker_checking_access">Checking Shizuku access…</string>
     <string name="shortcut_permission_request">Request permission</string>
