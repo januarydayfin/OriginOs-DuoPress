@@ -43,6 +43,8 @@ data class MenuEditorState(
     val saving: Boolean = false,
     val editFailed: Boolean = false,
     val editResult: MenuEditResult? = null,
+    // При отказе снимок меню может не измениться. Отдельный ключ сбрасывает временный порядок UI.
+    val moveRollback: Long = 0,
     val platformRequest: PlatformRequest? = null,
     val platformLaunchFailed: Boolean = false,
     internal val acknowledgedPreview: Long? = null,
@@ -138,8 +140,12 @@ class MenuEditorViewModel(
             is MenuEditorIntent.RemoveAt -> if (current.picker == MenuPicker.None) {
                 save(MenuEdit.RemoveAt(intent.index, intent.expectedRaw))
             }
-            is MenuEditorIntent.Move -> if (current.picker == MenuPicker.None) {
-                save(MenuEdit.Move(intent.from, intent.to, intent.expectedRaw))
+            is MenuEditorIntent.Move -> {
+                if (current.picker != MenuPicker.None || current.saving || current.loadingMenu) {
+                    mutableState.update { it.copy(moveRollback = it.moveRollback + 1) }
+                } else {
+                    save(MenuEdit.Move(intent.from, intent.to, intent.expectedRaw))
+                }
             }
             MenuEditorIntent.Preview -> if (current.previewEnabled && current.picker == MenuPicker.None) {
                 mutableState.update {
@@ -245,13 +251,18 @@ class MenuEditorViewModel(
                         visibleApps = if (closePicker) emptyList() else it.visibleApps,
                         saving = false,
                         editResult = result.takeIf { value -> value != MenuEditResult.Applied },
+                        moveRollback = if (edit is MenuEdit.Move && result != MenuEditResult.Applied)
+                            it.moveRollback + 1 else it.moveRollback,
                     )
                 }
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (_: Exception) {
                 ensureActive()
-                mutableState.update { it.copy(saving = false, editFailed = true) }
+                mutableState.update {
+                    it.copy(saving = false, editFailed = true,
+                        moveRollback = if (edit is MenuEdit.Move) it.moveRollback + 1 else it.moveRollback)
+                }
             }
         }
     }

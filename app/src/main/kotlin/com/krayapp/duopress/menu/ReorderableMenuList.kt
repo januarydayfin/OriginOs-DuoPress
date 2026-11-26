@@ -20,6 +20,7 @@ import sh.calvin.reorderable.rememberReorderableLazyListState
 internal fun ReorderableMenuList(
     items: List<String>,
     enabled: Boolean,
+    moveRollback: Long,
     onMove: (Int, Int, List<String>) -> Unit,
     modifier: Modifier = Modifier,
     row: @Composable (rawIndex: Int, handle: Modifier) -> Unit,
@@ -27,20 +28,25 @@ internal fun ReorderableMenuList(
     val list = rememberLazyListState()
     val move by rememberUpdatedState(onMove)
     val feedback = LocalHapticFeedback.current
-    key(items) {
+    key(items, moveRollback) {
         val original = remember { items.indices.toList() }
         var order by remember { mutableStateOf(original) }
         var dragging by remember { mutableStateOf<Int?>(null) }
+        var awaitingSnapshot by remember { mutableStateOf(false) }
         val interactions = remember { MutableInteractionSource() }
         LaunchedEffect(interactions) {
             interactions.interactions.collect { event ->
                 if (event is DragInteraction.Stop || event is DragInteraction.Cancel) {
-                    val from = dragging
+                    val from = dragging ?: return@collect
                     val to = order.indexOf(from)
                     dragging = null
-                    order = original
-                    if (event is DragInteraction.Stop && from != null && to >= 0 && from != to)
+                    if (event is DragInteraction.Stop && to >= 0 && from != to) {
+                        // Сохраняем видимый порядок вплоть до нового снимка или явного отказа.
+                        awaitingSnapshot = true
                         move(from, to, items)
+                    } else {
+                        order = original
+                    }
                 }
             }
         }
@@ -54,7 +60,7 @@ internal fun ReorderableMenuList(
         LazyColumn(modifier, state = list, contentPadding = PaddingValues(bottom = 92.dp)) {
             items(order, key = { it }) { rawIndex ->
                 ReorderableItem(reorder, key = rawIndex) {
-                    row(rawIndex, Modifier.draggableHandle(enabled = enabled && items.size > 1,
+                    row(rawIndex, Modifier.draggableHandle(enabled = enabled && !awaitingSnapshot && items.size > 1,
                         interactionSource = interactions, onDragStarted = {
                             dragging = rawIndex
                             feedback.performHapticFeedback(HapticFeedbackType.LongPress)

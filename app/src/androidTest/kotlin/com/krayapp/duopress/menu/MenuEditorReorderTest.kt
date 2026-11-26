@@ -19,6 +19,7 @@ class MenuEditorReorderTest {
     @get:Rule val compose = createComposeRule()
     private val original = listOf("app:a", "special:camera", "app:a", "app:b")
     private val saved = mutableStateOf(original)
+    private val rollback = mutableStateOf(0L)
     private val moves = mutableListOf<MenuEditorIntent.Move>()
     private val pulses = mutableListOf<HapticFeedbackType>()
     private val recorder = object : HapticFeedback {
@@ -31,7 +32,7 @@ class MenuEditorReorderTest {
     private fun setup() {
         compose.setContent {
             CompositionLocalProvider(LocalHapticFeedback provides recorder) {
-                MenuEditorScreen(MenuEditorState(menuItems = saved.value, loadingMenu = false), {
+                MenuEditorScreen(MenuEditorState(menuItems = saved.value, loadingMenu = false, moveRollback = rollback.value), {
                     if (it is MenuEditorIntent.Move) moves.add(it)
                 })
             }
@@ -62,11 +63,41 @@ class MenuEditorReorderTest {
         }
     }
 
+    @Test fun dropKeepsVisibleOrderUntilSavedSnapshotArrives() {
+        setup()
+        dragSecondDuplicate()
+        compose.onRoot().performTouchInput { up() }
+        compose.waitForIdle()
+        val cameraLabel = context.getString(R.string.name_camera)
+        fun assertCameraBelowBothApps() {
+            val cameraY = compose.onNodeWithText(cameraLabel).fetchSemanticsNode().boundsInRoot.center.y
+            val appYs = compose.onAllNodesWithText("a").fetchSemanticsNodes().map { it.boundsInRoot.center.y }
+            assertTrue("cameraY=$cameraY, appYs=$appYs", appYs.size == 2 && appYs.all { it < cameraY })
+        }
+        compose.runOnIdle { assertEquals(MenuEditorIntent.Move(2, 1, original), moves.single()) }
+        assertCameraBelowBothApps()
+        compose.runOnIdle { saved.value = listOf("app:a", "app:a", "special:camera", "app:b") }
+        assertCameraBelowBothApps()
+    }
+
     @Test fun cancelledDragDoesNotSave() {
         setup()
         dragSecondDuplicate()
         compose.onRoot().performTouchInput { cancel() }
         compose.runOnIdle { assertTrue(moves.isEmpty()); assertDragPulses() }
+    }
+
+    @Test fun rejectedDropRestoresOriginalPositionsAndAllowsRetry() {
+        setup()
+        dragSecondDuplicate()
+        compose.onRoot().performTouchInput { up() }
+        compose.runOnIdle { rollback.value++ }
+        val cameraY = compose.onNodeWithText(context.getString(R.string.name_camera)).fetchSemanticsNode().boundsInRoot.center.y
+        val above = compose.onAllNodesWithText("a").fetchSemanticsNodes().count { it.boundsInRoot.center.y < cameraY }
+        assertEquals(1, above)
+        dragSecondDuplicate()
+        compose.onRoot().performTouchInput { up() }
+        compose.runOnIdle { assertEquals(List(2) { MenuEditorIntent.Move(2, 1, original) }, moves) }
     }
 
     private fun assertDragPulses() {
