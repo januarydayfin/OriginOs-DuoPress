@@ -88,7 +88,7 @@ class ComposeAppIntegrationTest {
     fun launchShowsActionsWithoutLegacyHints() {
         launch()
         assertActions()
-        compose.onNode(heading(R.string.app_name)).assertIsDisplayed()
+        compose.onNode(heading(R.string.nav_actions)).assertIsDisplayed()
         compose.onNode(text(R.string.header_subtitle)).assertDoesNotExist()
         compose.onNode(text(R.string.card_action_hint)).assertDoesNotExist()
         compose.onNode(text(R.string.switch_vibrate)).assertDoesNotExist()
