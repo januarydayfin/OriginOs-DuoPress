@@ -2,8 +2,11 @@ package com.krayapp.duopress.ui.navigation
 
 import androidx.activity.compose.BackHandler
 import androidx.annotation.StringRes
+import androidx.compose.animation.AnimatedContentTransitionScope.SlideDirection
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.consumeWindowInsets
@@ -30,13 +33,18 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.Lifecycle
 import androidx.navigation.NavBackStackEntry
+import androidx.navigation.NavDestination
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
@@ -92,11 +100,17 @@ fun AppNavHost(
 ) {
     val navController = rememberNavController()
     val navigator = remember(navController) { AppNavigator(navController) }
-    val renderDestination by rememberUpdatedState(render)
     val entry by navController.currentBackStackEntryAsState()
+    val renderDestination by rememberUpdatedState(
+        @Composable { route: AppRoute, screenEntry: NavBackStackEntry, screenNavigator: AppNavigator ->
+            RouteContent(navController, screenEntry, active = screenEntry === entry) {
+                render(route, screenEntry, screenNavigator)
+            }
+        },
+    )
     val destination = entry?.destination
     val selectedSection = rootSections.firstOrNull { destination?.hasRoute(it.route::class) == true }
-    val nestedTitle = nestedTitles.entries.firstOrNull { destination?.hasRoute(it.key::class) == true }?.value
+    val nestedTitle = destination?.nestedTitleRes()
 
     Scaffold(
         modifier = modifier,
@@ -138,10 +152,26 @@ fun AppNavHost(
             navController = navController,
             startDestination = AppRoute.Actions,
             modifier = Modifier.fillMaxSize().padding(innerPadding).consumeWindowInsets(innerPadding),
-            enterTransition = { EnterTransition.None },
-            exitTransition = { ExitTransition.None },
-            popEnterTransition = { EnterTransition.None },
-            popExitTransition = { ExitTransition.None },
+            enterTransition = {
+                if (targetState.destination.nestedTitleRes() != null) {
+                    slideIntoContainer(SlideDirection.Left, tween(NESTED_SLIDE_DURATION_MS))
+                } else EnterTransition.None
+            },
+            exitTransition = {
+                if (targetState.destination.nestedTitleRes() != null) {
+                    slideOutOfContainer(SlideDirection.Left, tween(NESTED_SLIDE_DURATION_MS))
+                } else ExitTransition.None
+            },
+            popEnterTransition = {
+                if (initialState.destination.nestedTitleRes() != null) {
+                    slideIntoContainer(SlideDirection.Right, tween(NESTED_SLIDE_DURATION_MS))
+                } else EnterTransition.None
+            },
+            popExitTransition = {
+                if (initialState.destination.nestedTitleRes() != null) {
+                    slideOutOfContainer(SlideDirection.Right, tween(NESTED_SLIDE_DURATION_MS))
+                } else ExitTransition.None
+            },
         ) {
             composable<AppRoute.Actions> { renderDestination(AppRoute.Actions, it, navigator) }
             composable<AppRoute.Settings> { renderDestination(AppRoute.Settings, it, navigator) }
@@ -156,6 +186,30 @@ fun AppNavHost(
             entry?.let { navigator.back(it, onBack) }
         }
     }
+}
+
+@Composable
+private fun RouteContent(
+    navController: NavHostController,
+    entry: NavBackStackEntry,
+    active: Boolean,
+    content: @Composable () -> Unit,
+) {
+    // AnimatedContent keeps the outgoing screen composed after it stops being the current entry.
+    val input = Modifier
+        .pointerInput(navController, entry) {
+            awaitPointerEventScope {
+                while (true) {
+                    val event = awaitPointerEvent(PointerEventPass.Initial)
+                    if (navController.currentBackStackEntry !== entry) {
+                        event.changes.forEach { it.consume() }
+                    }
+                }
+            }
+        }
+        .onPreviewKeyEvent { navController.currentBackStackEntry !== entry }
+    val semantics = if (active) Modifier else Modifier.clearAndSetSemantics {}
+    Box(modifier = input.then(semantics), propagateMinConstraints = true) { content() }
 }
 
 private data class RootSection(
@@ -176,6 +230,12 @@ private val nestedTitles = mapOf(
     AppRoute.Lockscreen to R.string.card_lock_title,
     AppRoute.MenuEditor to R.string.editor_menu_title,
 )
+
+private const val NESTED_SLIDE_DURATION_MS = 140
+
+@StringRes
+private fun NavDestination.nestedTitleRes(): Int? =
+    nestedTitles.entries.firstOrNull { hasRoute(it.key::class) }?.value
 
 @Preview(showBackground = true)
 @Composable

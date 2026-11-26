@@ -2,6 +2,7 @@ package com.krayapp.duopress.ui.navigation
 
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.Button
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -10,22 +11,29 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsSelected
+import androidx.compose.ui.test.click
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isSelectable
 import androidx.compose.ui.test.isSelected
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTouchInput
 import androidx.lifecycle.Lifecycle
 import androidx.navigation.NavBackStackEntry
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.krayapp.duopress.ui.theme.AppTheme
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertSame
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -41,6 +49,7 @@ class AppNavHostTest {
     private val diagnosticsTab = hasText("Diagnostics") or hasText("Диагностика")
     private val backButton = hasContentDescription("Back") or hasContentDescription("Назад")
     private var actionsEntry: NavBackStackEntry? = null
+    private var lockscreenEdits = 0
 
     @Before
     fun showHost() {
@@ -48,14 +57,14 @@ class AppNavHostTest {
             AppTheme {
                 AppNavHost(render = { route, entry, navigator ->
                     if (route == AppRoute.Actions) SideEffect { actionsEntry = entry }
-                    TestScreen(route, entry, navigator)
+                    TestScreen(route, entry, navigator, onLockscreenEdit = { lockscreenEdits++ })
                 })
             }
         }
     }
 
     @Test
-    fun routeChangesRemoveTheOutgoingScreenWithoutWaitingForAnimation() {
+    fun rootRouteChangesRemoveTheOutgoingScreenWithoutWaitingForAnimation() {
         assertScreen("Actions screen")
         compose.mainClock.autoAdvance = false
         try {
@@ -64,12 +73,46 @@ class AppNavHostTest {
 
             systemBack()
             assertScreenReplaced("Settings screen", "Actions screen")
+        } finally {
+            compose.mainClock.autoAdvance = true
+        }
+    }
 
-            compose.onNodeWithText("Edit menu").performClick()
-            assertScreenReplaced("Actions screen", "Menu editor screen")
+    @Test
+    fun nestedRoutesSlideForwardAndBack() {
+        val restX = screenX(AppRoute.Actions)
+        compose.mainClock.autoAdvance = false
+        try {
+            compose.onNodeWithText("Pick action").performClick()
+            assertSlide(AppRoute.Actions, AppRoute.ActionPicker, restX, forward = true)
+
+            compose.onNodeWithText("Pick shortcut").performClick()
+            assertSlide(AppRoute.ActionPicker, AppRoute.ShortcutPicker, restX, forward = true)
+
+            systemBack()
+            assertSlide(AppRoute.ShortcutPicker, AppRoute.ActionPicker, restX, forward = false)
 
             compose.onNode(backButton).performClick()
-            assertScreenReplaced("Menu editor screen", "Actions screen")
+            assertSlide(AppRoute.ActionPicker, AppRoute.Actions, restX, forward = false)
+        } finally {
+            compose.mainClock.autoAdvance = true
+        }
+    }
+
+    @Test
+    fun leavingLockscreenCannotChangeSettingsDuringTheSlide() {
+        compose.onNodeWithText("Edit lockscreen").performClick()
+        val toggle = compose.onNodeWithText("Toggle lockscreen", useUnmergedTree = true)
+        toggle.performTouchInput { click() }
+        compose.runOnIdle { assertEquals(1, lockscreenEdits) }
+
+        compose.mainClock.autoAdvance = false
+        try {
+            systemBack()
+            compose.mainClock.advanceTimeBy(64)
+            compose.onNodeWithText("Toggle lockscreen").assertDoesNotExist()
+            toggle.assertIsDisplayed().performTouchInput { click() }
+            compose.runOnIdle { assertEquals(1, lockscreenEdits) }
         } finally {
             compose.mainClock.autoAdvance = true
         }
@@ -155,6 +198,20 @@ class AppNavHostTest {
         assertScreen(incoming)
     }
 
+    private fun screenX(route: AppRoute): Float =
+        compose.onNodeWithTag(route.toString(), useUnmergedTree = true).fetchSemanticsNode().positionInRoot.x
+
+    private fun assertSlide(outgoing: AppRoute, incoming: AppRoute, restX: Float, forward: Boolean) {
+        compose.mainClock.advanceTimeBy(64)
+        val movement = if (forward) 1 else -1
+        assertTrue("Incoming $incoming must enter from the side", (screenX(incoming) - restX) * movement > 0)
+        assertTrue("Outgoing $outgoing must exit to the opposite side", (screenX(outgoing) - restX) * movement < 0)
+
+        compose.mainClock.advanceTimeBy(128)
+        compose.onNodeWithTag(outgoing.toString(), useUnmergedTree = true).assertDoesNotExist()
+        assertEquals(restX, screenX(incoming), 0.5f)
+    }
+
     private fun assertSelectedTab(tab: SemanticsMatcher) {
         compose.onAllNodes(isSelectable()).assertCountEquals(3)
         compose.onAllNodes(isSelected()).assertCountEquals(1)
@@ -163,8 +220,13 @@ class AppNavHostTest {
 }
 
 @Composable
-private fun TestScreen(route: AppRoute, entry: NavBackStackEntry, navigator: AppNavigator) {
-    Column {
+private fun TestScreen(
+    route: AppRoute,
+    entry: NavBackStackEntry,
+    navigator: AppNavigator,
+    onLockscreenEdit: () -> Unit,
+) {
+    Column(Modifier.fillMaxWidth().testTag(route.toString())) {
         when (route) {
             AppRoute.Actions -> {
                 Text("Actions screen")
@@ -179,7 +241,10 @@ private fun TestScreen(route: AppRoute, entry: NavBackStackEntry, navigator: App
             }
             AppRoute.Diagnostics -> Text("Diagnostics screen")
             AppRoute.MenuEditor -> Text("Menu editor screen")
-            AppRoute.Lockscreen -> Text("Lockscreen screen")
+            AppRoute.Lockscreen -> {
+                Text("Lockscreen screen")
+                Button(onClick = onLockscreenEdit) { Text("Toggle lockscreen") }
+            }
             AppRoute.ActionPicker -> {
                 Text("Action picker screen")
                 Button(onClick = { navigator.completeActionSelection(entry, { true }, {}) }) { Text("Use action") }
