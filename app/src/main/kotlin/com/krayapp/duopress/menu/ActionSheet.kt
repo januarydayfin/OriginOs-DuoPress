@@ -140,7 +140,6 @@ internal fun ActionSheet(
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
-                tonalElevation = 6.dp,
             ) {
                 LazyColumn(
                     modifier = Modifier
@@ -209,7 +208,7 @@ private fun MenuActionRow(item: MenuItemUi, enabled: Boolean, onClick: () -> Uni
         },
         modifier = Modifier.heightIn(min = 48.dp).clip(RoundedCornerShape(16.dp))
             .clickable(enabled = enabled, role = Role.Button, onClick = onClick),
-        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
+        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
     )
 }
 
