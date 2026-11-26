@@ -408,12 +408,19 @@ class ShortcutPickerViewModel(
             try {
                 val result = withContext(dispatcher) {
                     when (target) {
-                        ShortcutPickTarget.MenuItem -> repository.editMenu(MenuEdit.Add(action.toActionId()))
+                        ShortcutPickTarget.MenuItem -> if (gateway.status() == Status.OK) {
+                            repository.editMenu(MenuEdit.Add(action.toActionId()))
+                        } else null
                         ShortcutPickTarget.MainAction -> {
                             repository.update(SettingsChange.Target(action.toActionId()))
                             MenuEditResult.Applied
                         }
                     }
+                }
+                if (result == null) {
+                    mutableState.update { it.copy(selection = PickerSelection.Idle) }
+                    refreshAccess()
+                    return@launch
                 }
                 mutableState.update {
                     if (result == MenuEditResult.Applied) it.copy(selection = PickerSelection.Complete)

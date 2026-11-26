@@ -4,6 +4,9 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.ViewModelStore
+import androidx.lifecycle.SavedStateHandle
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.cancel
 import com.krayapp.duopress.data.SettingsChange
 import com.krayapp.duopress.data.SettingsRepository
 import com.krayapp.duopress.data.SettingsSnapshot
@@ -29,6 +32,22 @@ import org.junit.Test
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class MenuEditorViewModelTest {
+    @Test
+    fun restoredMenuEditorRetainsGridUntilSuccessfulAddition() = withEditor { _, repo ->
+        val handle = SavedStateHandle()
+        val first = MenuEditorViewModel(repo, Catalog, StandardTestDispatcher(testScheduler), handle)
+        advanceUntilIdle()
+        first.onIntent(MenuEditorIntent.OpenGrid)
+        val copy = SavedStateHandle(handle.keys().associateWith { handle.get<Any?>(it) })
+        first.viewModelScope.cancel()
+        val restored = MenuEditorViewModel(repo, Catalog, StandardTestDispatcher(testScheduler), copy)
+        try {
+            advanceUntilIdle()
+            assertEquals(MenuPicker.Grid, restored.state.value.picker)
+            restored.onIntent(MenuEditorIntent.FinishMenuAddition)
+            assertEquals(MenuPicker.None, restored.state.value.picker)
+        } finally { restored.viewModelScope.cancel() }
+    }
     @Test
     fun noSeventeenthItemAndRemovingOneReopensAdding() = withEditor { editor, repository ->
         repository.replaceMenu(List(15) { "app:$it" })

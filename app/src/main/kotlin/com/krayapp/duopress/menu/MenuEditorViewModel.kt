@@ -2,6 +2,7 @@ package com.krayapp.duopress.menu
 
 import androidx.annotation.MainThread
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
 import com.krayapp.duopress.data.SettingsRepository
 import com.krayapp.duopress.picker.matchesPickerQuery
@@ -76,8 +77,11 @@ class MenuEditorViewModel(
     private val repository: SettingsRepository,
     private val catalog: AppCatalog,
     private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
+    private val savedState: SavedStateHandle = SavedStateHandle(),
 ) : ViewModel() {
-    private val mutableState = MutableStateFlow(MenuEditorState())
+    private val mutableState = MutableStateFlow(MenuEditorState(
+        picker = MenuPicker.entries.firstOrNull { it.name == savedState.get<String>(PICKER_STEP) } ?: MenuPicker.None,
+    ))
     val state = mutableState.asStateFlow()
     private var allApps = emptyList<AppEntry>()
     private var appsJob: Job? = null
@@ -106,10 +110,12 @@ class MenuEditorViewModel(
             MenuEditorIntent.BackFromPicker, MenuEditorIntent.FinishMenuAddition -> {
                 if (current.saving) return
                 searchJob?.cancel()
+                val step = if (intent == MenuEditorIntent.BackFromPicker && current.picker == MenuPicker.Apps)
+                    MenuPicker.Grid else MenuPicker.None
+                savedState[PICKER_STEP] = step.name
                 mutableState.update {
                     it.copy(
-                        picker = if (intent == MenuEditorIntent.BackFromPicker && it.picker == MenuPicker.Apps)
-                            MenuPicker.Grid else MenuPicker.None,
+                        picker = step,
                         query = "",
                         visibleApps = emptyList(),
                         editResult = null,
@@ -183,6 +189,7 @@ class MenuEditorViewModel(
     private fun openPicker(picker: MenuPicker, current: MenuEditorState) {
         val previous = if (picker == MenuPicker.Apps) MenuPicker.Grid else MenuPicker.None
         if (!current.canAdd || current.picker != previous) return
+        savedState[PICKER_STEP] = picker.name
         mutableState.update {
             it.copy(picker = picker, query = "", editResult = null, editFailed = false)
         }
@@ -229,8 +236,9 @@ class MenuEditorViewModel(
         viewModelScope.launch {
             try {
                 val result = withContext(dispatcher) { repository.editMenu(edit) }
+                val closePicker = result == MenuEditResult.Applied && edit is MenuEdit.Add
+                if (closePicker) savedState[PICKER_STEP] = MenuPicker.None.name
                 mutableState.update {
-                    val closePicker = result == MenuEditResult.Applied && edit is MenuEdit.Add
                     it.copy(
                         picker = if (closePicker) MenuPicker.None else it.picker,
                         query = if (closePicker) "" else it.query,
@@ -246,5 +254,9 @@ class MenuEditorViewModel(
                 mutableState.update { it.copy(saving = false, editFailed = true) }
             }
         }
+    }
+
+    private companion object {
+        const val PICKER_STEP = "menu_editor_picker"
     }
 }

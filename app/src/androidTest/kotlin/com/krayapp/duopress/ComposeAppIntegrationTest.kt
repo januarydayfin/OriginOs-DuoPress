@@ -453,8 +453,15 @@ class ComposeAppIntegrationTest {
             compose.waitUntil(5_000) { compose.onAllNodes(hasText(owner)).fetchSemanticsNodes().any { !it.config.contains(SemanticsActions.SetText) } }
             compose.onNode(hasText(owner) and hasSetTextAction().not()).performClick()
             val pick = checkNotNull(compose.onNode(hasText("Shortcut for menu")).fetchSemanticsNode().config[SemanticsActions.OnClick].action)
-            compose.runOnIdle { pick(); pick() }
+            val back = checkNotNull(compose.onNode(hasContentDescription(context.getString(R.string.btn_back)))
+                .fetchSemanticsNode().config[SemanticsActions.OnClick].action)
+            compose.runOnIdle {
+                pick()
+                pick()
+                back()
+            }
             compose.onNode(heading(R.string.editor_menu_title)).assertIsDisplayed()
+            compose.onNode(text(R.string.picker_section_apps)).assertDoesNotExist()
             compose.onNode(hasText("Shortcut for menu")).assertIsDisplayed()
             assertEquals(originalTarget, prefs.getString("target_package", null))
             val array = org.json.JSONArray(PrefsHelper.getMenuItemsJson(context))

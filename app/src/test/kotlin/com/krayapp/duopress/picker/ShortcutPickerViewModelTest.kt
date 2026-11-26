@@ -34,6 +34,23 @@ class ShortcutPickerViewModelTest : PickerViewModelTestFixture() {
     private val shortcut = ShortcutEntry(packageName, "send+%:fast", "Pay +%: now", ShortcutKind.Dynamic, 4)
 
     @Test
+    fun menuPickRejectsCachedShortcutAfterAccessLoss() = runTest {
+        catalog.entries = listOf(AppEntry(packageName, "Example"))
+        gateway.enqueue().complete(listOf(shortcut))
+        val model = track(ShortcutPickerViewModel(repository, catalog, gateway, SavedStateHandle(), dispatcher, ShortcutPickTarget.MenuItem))
+        runCurrent()
+        model.onIntent(ShortcutPickerIntent.ToggleApp(packageName))
+        runCurrent()
+        assertEquals(listOf(shortcut), visibleShortcuts(model))
+        gateway.currentStatus = Status.UNAVAILABLE
+        model.onIntent(ShortcutPickerIntent.PickShortcut(packageName, shortcut.id, ""))
+        runCurrent()
+        assertEquals(ShortcutAccess.Unavailable, model.state.value.access)
+        assertFalse(model.state.value.selectionComplete)
+        assertTrue(repository.saved.value.menuItems.isEmpty())
+    }
+
+    @Test
     fun menuPickAppendsWithoutChangingTarget() = runTest {
         val canonical = "shortcut:com.example.app:send%2B%25%3Afast:Pay+%2B%25%3A+now"
         val target = repository.saved.value.targetId

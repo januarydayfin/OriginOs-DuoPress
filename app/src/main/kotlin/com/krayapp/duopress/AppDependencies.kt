@@ -50,6 +50,6 @@ internal class AppDependencies(
         initializer { DiagnosticsViewModel(repository, handlerProbe, appContext.packageName) }
         initializer { ActionPickerViewModel(repository, catalog, savedStateHandle = createSavedStateHandle()) }
         initializer { ShortcutPickerViewModel(repository, catalog, shortcuts ?: androidShortcuts, createSavedStateHandle()) }
-        initializer { MenuEditorViewModel(repository, catalog) }
+        initializer { MenuEditorViewModel(repository, catalog, savedState = createSavedStateHandle()) }
     }
 }

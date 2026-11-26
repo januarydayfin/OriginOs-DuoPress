@@ -93,6 +93,10 @@ private class LauncherSession(val dependencies: AppDependencies) : ViewModel() {
             dependencies.menuShortcutModels else dependencies.routeModels)[T::class.java]
 
     fun back(entry: NavBackStackEntry): Boolean {
+        if (entry.destination.hasRoute<AppRoute.MenuShortcutPicker>()) {
+            val selection = model<ShortcutPickerViewModel>(entry).state.value.selection
+            if (selection == PickerSelection.Saving || selection == PickerSelection.Complete) return true
+        }
         if (entry.destination.hasRoute<AppRoute.MenuEditor>()) {
             val model = model<MenuEditorViewModel>(entry)
             if (model.state.value.picker != MenuPicker.None) {

@@ -45,7 +45,7 @@ class SharedPrefsSettingsRepository(
         .flowOn(dispatcher)
 
     override fun snapshot(): SettingsSnapshot {
-        val menu = PrefsHelper.getMenuItems(appContext)
+        val menu = synchronized(menuLock) { PrefsHelper.getMenuItems(appContext) }
         return SettingsSnapshot(
             targetId = PrefsHelper.getTargetPackage(appContext),
             lockscreenEnabled = PrefsHelper.isLockscreenEnabled(appContext),
@@ -77,7 +77,7 @@ class SharedPrefsSettingsRepository(
         val raw = List(source.length()) { source.opt(it) }
         val (result, items) = applyMenuEdit(raw, edit, { it?.toString().orEmpty() }, { it })
         if (result == MenuEditResult.Applied) {
-            PrefsHelper.saveMenuItems(appContext, JSONArray().apply { items.forEach { put(it) } })
+            PrefsHelper.commitMenuItems(appContext, JSONArray().apply { items.forEach { put(it) } })
         }
         result
     }
