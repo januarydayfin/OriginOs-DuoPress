@@ -8,6 +8,8 @@ import com.krayapp.duopress.ShizukuShortcuts.Status
 import com.krayapp.duopress.ShortcutAction
 import com.krayapp.duopress.data.SettingsChange
 import com.krayapp.duopress.data.SettingsRepository
+import com.krayapp.duopress.menu.MenuEdit
+import com.krayapp.duopress.menu.MenuEditResult
 import com.krayapp.duopress.platform.AppCatalog
 import com.krayapp.duopress.platform.AppEntry
 import com.krayapp.duopress.platform.AppScope
@@ -36,6 +38,8 @@ enum class ShortcutAccess {
 /** Результат Android-хоста; `Opened` означает только успешный запуск менеджера Shizuku. */
 enum class ShortcutPlatformResult { Granted, Denied, Failed, Opened }
 
+enum class ShortcutPickTarget { MainAction, MenuItem }
+
 sealed interface ShortcutLoad {
     data object Loading : ShortcutLoad
     data class Loaded(val entries: List<ShortcutEntry>) : ShortcutLoad
@@ -59,6 +63,8 @@ data class ShortcutPickerState(
     val appsError: String? = null,
     val visibleApps: List<ShortcutAppRow> = emptyList(),
     val selection: PickerSelection = PickerSelection.Idle,
+    val menuItems: List<String> = emptyList(),
+    val menuEditResult: MenuEditResult? = null,
 ) {
     val selectionComplete: Boolean get() = selection == PickerSelection.Complete
 }
@@ -86,6 +92,7 @@ class ShortcutPickerViewModel(
     private val gateway: ShortcutGateway,
     private val savedStateHandle: SavedStateHandle,
     private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
+    private val target: ShortcutPickTarget = ShortcutPickTarget.MainAction,
 ) : ViewModel() {
     private val mutableState = MutableStateFlow(
         ShortcutPickerState(query = savedStateHandle.get<String>(SHORTCUT_QUERY).orEmpty()),
@@ -111,7 +118,12 @@ class ShortcutPickerViewModel(
     init {
         viewModelScope.launch {
             repository.observe().flowOn(dispatcher).collect { settings ->
-                mutableState.update { it.copy(selectedShortcut = ShortcutAction.parse(settings.targetId)) }
+                mutableState.update {
+                    when (target) {
+                        ShortcutPickTarget.MainAction -> it.copy(selectedShortcut = ShortcutAction.parse(settings.targetId))
+                        ShortcutPickTarget.MenuItem -> it.copy(menuItems = settings.menuItems)
+                    }
+                }
             }
         }
         if (savedStateHandle.get<Boolean>(PERMISSION_IN_FLIGHT) == true) {
@@ -391,17 +403,27 @@ class ShortcutPickerViewModel(
             ?.firstOrNull { it.id == intent.shortcutId && it.packageName == intent.packageName }
             ?: return
         val action = ShortcutAction(shortcut.packageName, shortcut.id, shortcut.label)
-        mutableState.update { it.copy(selection = PickerSelection.Saving) }
+        mutableState.update { it.copy(selection = PickerSelection.Saving, menuEditResult = null) }
         viewModelScope.launch {
-            val saved = try {
-                withContext(dispatcher) { repository.update(SettingsChange.Target(action.toActionId())) }
-                PickerSelection.Complete
+            try {
+                val result = withContext(dispatcher) {
+                    when (target) {
+                        ShortcutPickTarget.MenuItem -> repository.editMenu(MenuEdit.Add(action.toActionId()))
+                        ShortcutPickTarget.MainAction -> {
+                            repository.update(SettingsChange.Target(action.toActionId()))
+                            MenuEditResult.Applied
+                        }
+                    }
+                }
+                mutableState.update {
+                    if (result == MenuEditResult.Applied) it.copy(selection = PickerSelection.Complete)
+                    else it.copy(selection = PickerSelection.Failed, menuEditResult = result)
+                }
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (_: Exception) {
-                PickerSelection.Failed
+                mutableState.update { it.copy(selection = PickerSelection.Failed) }
             }
-            mutableState.update { it.copy(selection = saved) }
         }
     }
 

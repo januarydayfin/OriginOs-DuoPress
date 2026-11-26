@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="menu_item_added">Already in menu</string>
     <string name="app_name">DuoPress</string>
     <string name="swipe_activity_label">DuoPress</string>
 

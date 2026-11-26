@@ -3,6 +3,10 @@ package com.krayapp.duopress.picker
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
 import com.krayapp.duopress.ShizukuShortcuts.Status
+import com.krayapp.duopress.data.SettingsRepository
+import com.krayapp.duopress.menu.MenuEdit
+import com.krayapp.duopress.menu.MenuEditResult
+import com.krayapp.duopress.menu.applyMenuEdit
 import com.krayapp.duopress.platform.AppEntry
 import com.krayapp.duopress.platform.AppScope
 import com.krayapp.duopress.platform.PlatformCommand
@@ -28,6 +32,33 @@ class ShortcutPickerViewModelTest : PickerViewModelTestFixture() {
     private val gateway = ControlledGateway()
     private val packageName = "com.example.app"
     private val shortcut = ShortcutEntry(packageName, "send+%:fast", "Pay +%: now", ShortcutKind.Dynamic, 4)
+
+    @Test
+    fun menuPickAppendsWithoutChangingTarget() = runTest {
+        val canonical = "shortcut:com.example.app:send%2B%25%3Afast:Pay+%2B%25%3A+now"
+        val target = repository.saved.value.targetId
+        for (before in listOf(emptyList(), listOf(canonical), List(16) { "app:$it" })) {
+            repository.saved.value = repository.saved.value.copy(menuItems = before)
+            val store = object : SettingsRepository by repository {
+                override fun editMenu(edit: MenuEdit): MenuEditResult {
+                    val (result, items) = applyMenuEdit(repository.saved.value.menuItems, edit, { it }, { it })
+                    repository.saved.value = repository.saved.value.copy(menuItems = items)
+                    return result
+                }
+            }
+            val model = track(ShortcutPickerViewModel(store, catalog, gateway, SavedStateHandle(), dispatcher, ShortcutPickTarget.MenuItem))
+            catalog.entries = listOf(AppEntry(packageName, "Example"))
+            gateway.enqueue().complete(listOf(shortcut))
+            runCurrent()
+            model.onIntent(ShortcutPickerIntent.ToggleApp(packageName))
+            runCurrent()
+            model.onIntent(ShortcutPickerIntent.PickShortcut(packageName, shortcut.id, ""))
+            runCurrent()
+            assertEquals(before.isEmpty(), model.state.value.selectionComplete)
+            assertEquals(if (before.isEmpty()) listOf(canonical) else before, repository.saved.value.menuItems)
+            assertEquals(target, repository.saved.value.targetId)
+        }
+    }
 
     @Test
     fun recreatedPickerRestoresSearchAndReloadsExpandedApp() = runTest {
