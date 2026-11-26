@@ -2,24 +2,33 @@ package com.krayapp.duopress.platform
 
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 
-/** Сохраняет живое соединение и не принимает callback от предыдущей попытки. */
+/**
+ * Сохраняет живое соединение и не принимает callback от предыдущей попытки.
+ *
+ * @param bind начинает привязку, принимает callbacks и возвращает операцию очистки.
+ * @param isAlive проверяет, что уже подключившийся сервис ещё принимает запросы.
+ * @param timeoutMs предел ожидания callback о подключении.
+ */
 internal class ShortcutServiceConnection<T : Any>(
-    private val bind: ((T) -> Unit, () -> Unit) -> (() -> Unit),
+    private val bind: suspend ((T) -> Unit, () -> Unit) -> (suspend () -> Unit),
     private val isAlive: (T) -> Boolean,
     private val timeoutMs: Long = 5_000,
 ) {
     private val mutex = Mutex()
     private var active: Binding<T>? = null
 
+    /** Возвращает живой сервис; при отмене незавершённой привязки очищает её перед следующим запросом. */
     suspend fun awaitService(): T = mutex.withLock {
         active?.let {
             if (!it.disconnected.get() && isAlive(it.service)) return@withLock it.service
             active = null
-            it.unbind()
+            withContext(NonCancellable) { it.unbind() }
         }
 
         val result = CompletableDeferred<T>()
@@ -39,10 +48,10 @@ internal class ShortcutServiceConnection<T : Any>(
         } finally {
             if (!retained) {
                 result.cancel()
-                unbind()
+                withContext(NonCancellable) { unbind() }
             }
         }
     }
 
-    private class Binding<T>(val service: T, val disconnected: AtomicBoolean, val unbind: () -> Unit)
+    private class Binding<T>(val service: T, val disconnected: AtomicBoolean, val unbind: suspend () -> Unit)
 }

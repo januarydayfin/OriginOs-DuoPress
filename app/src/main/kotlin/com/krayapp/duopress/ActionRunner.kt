@@ -88,7 +88,9 @@ class ActionRunner private constructor() {
                 if (label == null || label.trim { it <= ' ' }.isEmpty()) {
                     label = shortcut.shortcutId
                 }
-                saveShortcutResult(context, sourceIntent, id, context.getString(R.string.log_shortcut_ok, label))
+                saveShortcutResult(
+                    context, sourceIntent, id, context.getString(shortcutLaunchStatus(Build.VERSION.SDK_INT), label),
+                )
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -340,3 +342,12 @@ class ActionRunner private constructor() {
         }
     }
 }
+
+/**
+ * Выбирает статус для журнала: на Android 11 LauncherApps не подтверждает открытие окна.
+ *
+ * @param sdkInt уровень API устройства.
+ * @return строковый ресурс результата запуска или подтверждения отправки запроса.
+ */
+internal fun shortcutLaunchStatus(sdkInt: Int): Int =
+    if (sdkInt >= Build.VERSION_CODES.S) R.string.log_shortcut_ok else R.string.log_shortcut_requested

@@ -7,6 +7,8 @@ import android.content.pm.PackageManager
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
 import android.os.Build
+import android.os.Process
+import android.os.UserHandle
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.krayapp.duopress.R
@@ -46,6 +48,13 @@ class PlatformAdaptersTest {
             .single { it.id == "shortcut-add-contact" }
         val icon = requireNotNull(ShizukuShortcuts.getShortcutIcon(app, shortcut, 160, 32))
         assertTrue(icon.width in 1..32 && icon.height in 1..32)
+    }
+
+    @Test
+    fun shortcutServiceTargetsAuthorizedAppsProfileNotTheShellProfile() {
+        val appUid = 1_010_001
+        assertEquals(UserHandle.getUserHandleForUid(1_010_002), requireShortcutCaller(appUid, appUid))
+        assertThrows(SecurityException::class.java) { requireShortcutCaller(appUid, Process.SHELL_UID) }
     }
 
     @Test

@@ -11,6 +11,7 @@ import android.graphics.drawable.Drawable
 import android.os.Binder
 import android.os.Build
 import android.os.Process
+import android.os.UserHandle
 import androidx.annotation.RequiresApi
 import kotlin.system.exitProcess
 import kotlin.math.roundToInt
@@ -30,26 +31,26 @@ class ShortcutUserService(private val context: Context) : IShortcutService.Stub(
     }
 
     override fun listShortcuts(packageName: String): List<ShortcutInfo> {
-        enforceAppCaller()
+        val user = enforceAppCaller()
         val query = LauncherApps.ShortcutQuery().setPackage(packageName).setQueryFlags(
             LauncherApps.ShortcutQuery.FLAG_MATCH_DYNAMIC or
                 LauncherApps.ShortcutQuery.FLAG_MATCH_MANIFEST or
                 LauncherApps.ShortcutQuery.FLAG_MATCH_PINNED or
                 LauncherApps.ShortcutQuery.FLAG_MATCH_PINNED_BY_ANY_LAUNCHER,
         )
-        return launcherApps.getShortcuts(query, Process.myUserHandle()).orEmpty().filter { it.isEnabled }
+        return launcherApps.getShortcuts(query, user).orEmpty().filter { it.isEnabled }
     }
 
     override fun createLaunchIntent(packageName: String, shortcutId: String): PendingIntent? {
-        enforceAppCaller()
-        check(Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
-        return launcherApps.getShortcutIntent(packageName, shortcutId, null, Process.myUserHandle())
+        val user = enforceAppCaller()
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) error("Shortcut PendingIntent requires Android 12")
+        return launcherApps.getShortcutIntent(packageName, shortcutId, null, user)
     }
 
     override fun startShortcut(packageName: String, shortcutId: String) {
-        enforceAppCaller()
+        val user = enforceAppCaller()
         check(Build.VERSION.SDK_INT < Build.VERSION_CODES.S)
-        launcherApps.startShortcut(packageName, shortcutId, null, null, Process.myUserHandle())
+        launcherApps.startShortcut(packageName, shortcutId, null, null, user)
     }
 
     override fun getShortcutIcon(shortcut: ShortcutInfo, densityDpi: Int, sizePx: Int): Bitmap? {
@@ -62,11 +63,20 @@ class ShortcutUserService(private val context: Context) : IShortcutService.Stub(
         exitProcess(0)
     }
 
-    private fun enforceAppCaller() {
-        if (Binder.getCallingUid() != context.applicationInfo.uid) {
-            throw SecurityException("Shortcut service only accepts calls from DuoPress")
-        }
-    }
+    private fun enforceAppCaller(): UserHandle =
+        requireShortcutCaller(context.applicationInfo.uid, Binder.getCallingUid())
+}
+
+/**
+ * Проверяет UID DuoPress и возвращает профиль приложения, а не процесса shell.
+ *
+ * @param appUid UID DuoPress из контекста, предоставленного Shizuku.
+ * @param callingUid UID отправителя текущего Binder-вызова.
+ * @return профиль, в котором установлена вызывающая копия DuoPress.
+ */
+internal fun requireShortcutCaller(appUid: Int, callingUid: Int): UserHandle {
+    if (appUid != callingUid) throw SecurityException("Shortcut service only accepts calls from DuoPress")
+    return UserHandle.getUserHandleForUid(appUid)
 }
 
 /** Ограничивает размер ответа Binder, сохраняя пропорции и не передавая hardware bitmap. */

@@ -21,6 +21,7 @@ object ShizukuShortcuts {
         UNSUPPORTED_API,
     }
 
+    /** Проверяет совместимость и разрешение до первого запроса к UserService. */
     @WorkerThread
     @JvmStatic
     fun checkStatus(): Status = try {

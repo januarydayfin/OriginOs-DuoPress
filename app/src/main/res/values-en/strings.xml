@@ -222,6 +222,7 @@
     <string name="log_camera_ok_secure">Camera launched (secure mode for the lock screen)</string>    <string name="log_camera_error">Camera launch error: %1$s</string>
     <string name="log_wallet_ok">Vivo Wallet key launched (NewSwipeActivity)</string>
     <string name="log_shortcut_ok">Shortcut launched: %1$s</string>
+    <string name="log_shortcut_requested">Shortcut launch requested: %1$s</string>
     <string name="log_shortcut_failed">Failed to launch shortcut: %1$s</string>
     <string name="log_shortcut_invalid">Invalid shortcut action: %1$s</string>
     <string name="log_app_ok">Launched: %1$s</string>

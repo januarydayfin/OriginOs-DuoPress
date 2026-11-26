@@ -28,6 +28,7 @@ DuoPress переназначает жест, которым **vivo** и **iQOO*
 
 - **Android 7.1+ (API 25)** — минимальная версия для установки. Сам жест работает на сборках OriginOS, которые отправляют системный вызов Vivo Wallet и позволяют выбрать сторонний обработчик. Это зависит от прошивки.
 - **Ярлыки приложений** требуют **Android 11+** и [Shizuku](https://shizuku.rikka.app/) **с API 13+**, запущенного через ADB или беспроводную отладку от имени `shell`. Нужно выдать DuoPress разрешение в Shizuku. Запуск Shizuku от root и Sui не поддерживаются. Остальные действия от Shizuku не зависят.
+- На **Android 11** система может отклонить запуск ярлыка, если приложение-владелец не открыто. Журнал подтверждает отправку запроса, а не появление окна.
 - DuoPress **не меняет приложение бесконтактной оплаты по умолчанию**. Запуск Mir Pay по кнопке и выбор платёжного приложения в Android — разные настройки.
 
 ## Быстрая настройка
@@ -66,6 +67,8 @@ APK появятся в `app/build/outputs/apk/`. Debug-сборка устан�
 ## English
 
 DuoPress remaps the power-button double press on supported vivo and iQOO phones running OriginOS. Open an app or shortcut, toggle the flashlight or Happ/incy VPN, launch the camera, or show a customizable action menu. You can assign a separate flashlight or camera action to the lock screen. The app supports Android 7.1+; only app shortcuts require Android 11+ and Shizuku API 13+ running as `shell`. The in-app test does not exercise the physical button.
+
+On Android 11, the system may block a shortcut launch when its app is not open. The log confirms the request, not that the window appeared.
 
 ## Лицензия
 

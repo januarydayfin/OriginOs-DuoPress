@@ -226,6 +226,7 @@
     <string name="log_camera_ok_secure">Камера запущена (secure-режим для экрана блокировки)</string>    <string name="log_camera_error">Ошибка запуска камеры: %1$s</string>
     <string name="log_wallet_ok">Запущен ключ Vivo Wallet (NewSwipeActivity)</string>
     <string name="log_shortcut_ok">Ярлык запущен: %1$s</string>
+    <string name="log_shortcut_requested">Запрос на запуск ярлыка отправлен: %1$s</string>
     <string name="log_shortcut_failed">Ошибка запуска ярлыка: %1$s</string>
     <string name="log_shortcut_invalid">Некорректное действие ярлыка: %1$s</string>
     <string name="log_app_ok">Запущено: %1$s</string>

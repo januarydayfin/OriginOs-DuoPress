@@ -2,9 +2,12 @@ package com.krayapp.duopress.platform
 
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.launch
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -48,13 +51,25 @@ class ShortcutServiceConnectionTest {
         assertEquals("third", third.await())
     }
 
-    private class Host {
+    @Test
+    fun cancellationReleasesTheBindingEvenWhenCleanupSuspends() = runTest {
+        val host = Host(cleanupDelay = 10)
+        val request = launch { host.connection.awaitService() }
+        runCurrent()
+        request.cancelAndJoin()
+        assertEquals(1, host.closed)
+    }
+
+    private class Host(private val cleanupDelay: Long = 0) {
         val attempts = mutableListOf<Attempt>()
         var closed = 0
         val connection = ShortcutServiceConnection<String>(
             bind = { connected, disconnected ->
                 attempts.add(Attempt(connected, disconnected))
-                val close: () -> Unit = { closed++ }
+                val close: suspend () -> Unit = {
+                    if (cleanupDelay > 0) delay(cleanupDelay)
+                    closed++
+                }
                 close
             },
             isAlive = { true },
