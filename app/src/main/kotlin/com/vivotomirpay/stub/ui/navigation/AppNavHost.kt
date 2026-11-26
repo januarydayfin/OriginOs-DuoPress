@@ -2,6 +2,8 @@ package com.vivotomirpay.stub.ui.navigation
 
 import androidx.activity.compose.BackHandler
 import androidx.annotation.StringRes
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.consumeWindowInsets
@@ -136,6 +138,10 @@ fun AppNavHost(
             navController = navController,
             startDestination = AppRoute.Actions,
             modifier = Modifier.fillMaxSize().padding(innerPadding).consumeWindowInsets(innerPadding),
+            enterTransition = { EnterTransition.None },
+            exitTransition = { ExitTransition.None },
+            popEnterTransition = { EnterTransition.None },
+            popExitTransition = { ExitTransition.None },
         ) {
             composable<AppRoute.Actions> { renderDestination(AppRoute.Actions, it, navigator) }
             composable<AppRoute.Settings> { renderDestination(AppRoute.Settings, it, navigator) }

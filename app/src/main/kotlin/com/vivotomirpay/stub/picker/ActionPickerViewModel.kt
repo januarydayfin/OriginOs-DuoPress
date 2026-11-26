@@ -23,11 +23,8 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-/** Пресеты со старыми ID хранилища; переход к ярлыкам не является сохраняемым действием. */
+/** Встроенные специальные действия с ID, которые сохраняются в настройках. */
 enum class ActionPreset(val id: String) {
-    MirPay("ru.nspk.mirpay"),
-    SbpPay("ru.nspk.sbpay"),
-    VivoWallet("com.vivo.wallet"),
     Torch(PrefsHelper.SPECIAL_TORCH),
     Camera(PrefsHelper.SPECIAL_CAMERA),
     Vpn(PrefsHelper.SPECIAL_VPN),

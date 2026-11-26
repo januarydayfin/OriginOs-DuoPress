@@ -30,6 +30,52 @@ import org.junit.Test
 @OptIn(ExperimentalCoroutinesApi::class)
 class ActionPickerViewModelTest : PickerViewModelTestFixture() {
     @Test
+    fun presetsContainOnlyBuiltInSpecialActions() {
+        assertEquals(
+            setOf("special:torch", "special:camera", "special:vpn", "special:circle_to_search", "special:menu"),
+            ActionPreset.entries.map { it.id }.toSet(),
+        )
+    }
+
+    @Test
+    fun openingPickerDoesNotChangePreviouslySavedWallet() = runTest {
+        repository.saved.value = repository.saved.value.copy(targetId = "com.vivo.wallet")
+        val model = model()
+        runCurrent()
+
+        assertEquals("com.vivo.wallet", model.state.value.targetId)
+        assertTrue(repository.writes.isEmpty())
+    }
+
+    @Test
+    fun mirPayCanBePickedFromAppSearch() = runTest {
+        val mirPay = AppEntry("ru.nspk.mirpay", "Mir Pay")
+        catalog.entries = listOf(mirPay, AppEntry("ru.nspk.sbpay", "SBPay"))
+        val model = model()
+        runCurrent()
+        model.onIntent(ActionPickerIntent.Search("Mir Pay"))
+        runCurrent()
+
+        assertEquals(listOf(mirPay), model.state.value.visibleApps)
+        model.onIntent(ActionPickerIntent.PickApp(mirPay.packageName, "Mir Pay"))
+        runCurrent()
+        assertEquals(listOf(SettingsChange.Target("ru.nspk.mirpay")), repository.writes)
+        assertTrue(model.state.value.selectionComplete)
+    }
+
+    @Test
+    fun sbPayCanBePickedByPackageName() = runTest {
+        val model = model()
+        runCurrent()
+        model.onIntent(ActionPickerIntent.ChangeManualPackage("ru.nspk.sbpay"))
+        model.onIntent(ActionPickerIntent.PickManualPackage)
+        runCurrent()
+
+        assertEquals(listOf(SettingsChange.Target("ru.nspk.sbpay")), repository.writes)
+        assertTrue(model.state.value.selectionComplete)
+    }
+
+    @Test
     fun primaryPickPersistsExistingId() = runTest {
         val model = model()
         runCurrent()

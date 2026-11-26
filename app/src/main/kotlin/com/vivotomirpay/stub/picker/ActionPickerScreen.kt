@@ -89,10 +89,9 @@ private fun ActionPickerContent(
     ) {
         item("presets") { PickerHeading(stringResource(R.string.picker_section_specials)) }
         items(presetRows, key = { it.preset.id }, contentType = { "preset" }) { row ->
-            val selectedId = if (row.preset in walletPresets) currentPackage else state.targetId
             PickerChoice(
                 label = stringResource(row.label),
-                selected = row.preset.id == selectedId,
+                selected = row.preset.id == state.targetId,
                 enabled = canPick,
                 onClick = { onIntent(ActionPickerIntent.PickPreset(row.preset)) },
                 leading = { PickerIcon(row.icon) },
@@ -253,16 +252,12 @@ private fun PickerIcon(@DrawableRes icon: Int) {
 private data class PresetRow(val preset: ActionPreset, @StringRes val label: Int, @DrawableRes val icon: Int)
 
 private val presetRows = listOf(
-    PresetRow(ActionPreset.MirPay, R.string.preset_mirpay, R.drawable.ic_action_app),
-    PresetRow(ActionPreset.SbpPay, R.string.preset_sbpay, R.drawable.ic_action_app),
-    PresetRow(ActionPreset.VivoWallet, R.string.picker_vivo_wallet, R.drawable.ic_action_app),
     PresetRow(ActionPreset.Torch, R.string.name_torch, R.drawable.ic_action_torch),
     PresetRow(ActionPreset.Camera, R.string.name_camera, R.drawable.ic_action_camera),
     PresetRow(ActionPreset.Vpn, R.string.name_vpn, R.drawable.ic_action_vpn),
     PresetRow(ActionPreset.Menu, R.string.name_menu, R.drawable.ic_action_menu),
     PresetRow(ActionPreset.CircleToSearch, R.string.name_cts, R.drawable.ic_action_search),
 )
-private val walletPresets = setOf(ActionPreset.MirPay, ActionPreset.SbpPay, ActionPreset.VivoWallet)
 
 @Preview(showBackground = true)
 @Composable

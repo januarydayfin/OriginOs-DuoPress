@@ -55,6 +55,27 @@ class AppNavHostTest {
     }
 
     @Test
+    fun routeChangesRemoveTheOutgoingScreenWithoutWaitingForAnimation() {
+        assertScreen("Actions screen")
+        compose.mainClock.autoAdvance = false
+        try {
+            compose.onNode(settingsTab).performClick()
+            assertScreenReplaced("Actions screen", "Settings screen")
+
+            systemBack()
+            assertScreenReplaced("Settings screen", "Actions screen")
+
+            compose.onNodeWithText("Edit menu").performClick()
+            assertScreenReplaced("Actions screen", "Menu editor screen")
+
+            compose.onNode(backButton).performClick()
+            assertScreenReplaced("Menu editor screen", "Actions screen")
+        } finally {
+            compose.mainClock.autoAdvance = true
+        }
+    }
+
+    @Test
     fun rootNavigationShowsCorrectSectionAndNeverDuplicates() {
         assertScreen("Actions screen")
         assertSelectedTab(actionsTab)
@@ -126,6 +147,12 @@ class AppNavHostTest {
 
     private fun assertScreen(label: String) {
         compose.onNodeWithText(label).assertIsDisplayed()
+    }
+
+    private fun assertScreenReplaced(outgoing: String, incoming: String) {
+        compose.mainClock.advanceTimeBy(64)
+        compose.onNodeWithText(outgoing).assertDoesNotExist()
+        assertScreen(incoming)
     }
 
     private fun assertSelectedTab(tab: SemanticsMatcher) {

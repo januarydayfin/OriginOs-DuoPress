@@ -54,7 +54,6 @@
 
     <!-- Пресеты -->
     <string name="preset_mirpay">Mir Pay</string>
-    <string name="preset_sbpay">СБПэй</string>
     <string name="preset_wallet">Wallet (ключ)</string>
     <string name="preset_torch">Фонарик</string>
     <string name="preset_camera">Камера</string>
@@ -134,7 +133,6 @@
     <string name="picker_section_apps">Приложения</string>
     <string name="picker_search_hint">Поиск по названию или имени пакета…</string>
     <string name="picker_no_apps">Ничего не найдено</string>
-    <string name="picker_vivo_wallet">Vivo Wallet</string>
     <string name="picker_manual_title">Ввод вручную</string>
     <string name="picker_manual_package_hint">Имя пакета</string>
     <string name="picker_manual_confirm">Выбрать пакет</string>
