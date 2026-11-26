@@ -5,13 +5,11 @@ import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.FloatingActionButton
@@ -27,7 +25,8 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
-import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
@@ -77,8 +76,7 @@ private fun EditorRows(
     loadIcon: suspend (String) -> ImageBitmap?,
 ) {
     val renderedMenu = state.menuItems
-    LazyColumn(modifier.fillMaxSize(), contentPadding = PaddingValues(top = 8.dp, bottom = 92.dp)) {
-        item {
+    Column(modifier.fillMaxSize()) {
             Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
                 horizontalArrangement = Arrangement.SpaceBetween) {
                 Text(stringResource(R.string.editor_order))
@@ -86,12 +84,12 @@ private fun EditorRows(
             }
             if (renderedMenu.size >= PrefsHelper.MAX_MENU_ITEMS) PickerMessage(stringResource(R.string.editor_menu_full))
             EditorFeedback(state)
-        }
         if (!state.loadingMenu && renderedMenu.isEmpty()) {
-            item { PickerMessage(stringResource(R.string.editor_empty)) }
+            PickerMessage(stringResource(R.string.editor_empty))
         }
-        itemsIndexed(renderedMenu) { index, rawId ->
-            val id = rawId.legacyMenuTrim()
+        ReorderableMenuList(renderedMenu, !state.saving,
+            onMove = { from, to, snapshot -> onIntent(MenuEditorIntent.Move(from, to, snapshot)) }) { index, handle ->
+            val id = renderedMenu[index].legacyMenuTrim()
             val special = menuSpecialLabel(id)
             val packageName = PrefsHelper.appPackageOf(id)
             val label = when {
@@ -100,7 +98,19 @@ private fun EditorRows(
                 packageName != null -> state.appLabels[packageName] ?: packageName
                 else -> menuShortcutLabel(id) ?: id
             }
+            val up = stringResource(R.string.editor_move_up, label)
+            val down = stringResource(R.string.editor_move_down, label)
             ListItem(
+                modifier = Modifier.semantics {
+                    customActions = buildList {
+                        if (!state.saving && index > 0) add(CustomAccessibilityAction(up) {
+                            onIntent(MenuEditorIntent.Move(index, index - 1, renderedMenu)); true
+                        })
+                        if (!state.saving && index < renderedMenu.lastIndex) add(CustomAccessibilityAction(down) {
+                            onIntent(MenuEditorIntent.Move(index, index + 1, renderedMenu)); true
+                        })
+                    }
+                },
                 headlineContent = { Text(label) },
                 leadingContent = {
                     if (packageName != null) {
@@ -110,22 +120,15 @@ private fun EditorRows(
                     }
                 },
                 trailingContent = {
-                    Row {
-                        EditIconButton(
-                            icon = R.drawable.ic_action_up,
-                            description = stringResource(R.string.editor_move_up, label),
-                            enabled = !state.saving && index > 0,
-                        ) { onIntent(MenuEditorIntent.Move(index, index - 1, renderedMenu)) }
-                        EditIconButton(
-                            icon = R.drawable.ic_action_down,
-                            description = stringResource(R.string.editor_move_down, label),
-                            enabled = !state.saving && index < renderedMenu.lastIndex,
-                        ) { onIntent(MenuEditorIntent.Move(index, index + 1, renderedMenu)) }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
                         EditIconButton(
                             icon = R.drawable.ic_action_delete,
                             description = stringResource(R.string.editor_remove_item, label),
                             enabled = !state.saving,
                         ) { onIntent(MenuEditorIntent.RemoveAt(index, renderedMenu)) }
+                        Box(handle.size(48.dp), contentAlignment = Alignment.Center) {
+                            Icon(painterResource(R.drawable.ic_action_drag), stringResource(R.string.editor_drag, label))
+                        }
                     }
                 },
             )
@@ -138,15 +141,6 @@ private fun EditIconButton(@DrawableRes icon: Int, description: String, enabled:
     IconButton(onClick = onClick, enabled = enabled) {
         Icon(painterResource(icon), contentDescription = description)
     }
-}
-
-@Composable
-private fun EditorHeading(title: String) {
-    Text(
-        title,
-        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp).semantics { heading() },
-        style = MaterialTheme.typography.titleMedium,
-    )
 }
 
 @Composable

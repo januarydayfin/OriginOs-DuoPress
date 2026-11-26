@@ -112,6 +112,7 @@
     <!-- Menu editor -->
     <string name="editor_menu_title">Action menu</string>
     <string name="editor_order">Menu order</string>
+    <string name="editor_drag">Drag %1$s</string>
     <string name="editor_count">%1$d / %2$d</string>
     <string name="editor_hint">Items launch with one tap. Arrows reorder, the cross deletes. Changes are saved instantly.</string>
     <string name="editor_add_action">Add to menu</string>

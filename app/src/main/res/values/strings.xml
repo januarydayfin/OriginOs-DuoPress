@@ -116,6 +116,7 @@
     <!-- Редактор меню -->
     <string name="editor_menu_title">Меню действий</string>
     <string name="editor_order">Порядок в меню</string>
+    <string name="editor_drag">Перетащить «%1$s»</string>
     <string name="editor_count">%1$d / %2$d</string>
     <string name="editor_hint">Пункты запускаются одним тапом. Стрелки меняют порядок, крестик удаляет. Изменения сохраняются сразу.</string>
     <string name="editor_add_action">Добавить в меню</string>
