@@ -47,6 +47,7 @@ import com.krayapp.duopress.ShortcutAction
 import com.krayapp.duopress.platform.AppEntry
 import com.krayapp.duopress.ui.common.ActionTile
 import com.krayapp.duopress.ui.common.AppIcon
+import com.krayapp.duopress.ui.common.ShortcutActionTile
 import com.krayapp.duopress.ui.theme.AppTheme
 
 /**
@@ -55,6 +56,8 @@ import com.krayapp.duopress.ui.theme.AppTheme
  * @param viewModel источник текущего действия и черновика ручного ввода.
  * @param onOpenApps открывает список приложений в отдельном маршруте.
  * @param onOpenShortcuts открывает выбор ярлыка в отдельном маршруте.
+ * @param shizukuInstalled наличие пакета Shizuku; `null`, пока идёт проверка.
+ * @param onOpenShizukuStore открывает страницу установки и сообщает, удалось ли это.
  * @param isActive проверяет, может ли экран ещё принимать действия во время перехода.
  * @param modifier модификатор прокручиваемой области экрана.
  */
@@ -63,6 +66,8 @@ fun ActionPickerScreen(
     viewModel: ActionPickerViewModel,
     onOpenApps: () -> Unit,
     onOpenShortcuts: () -> Unit,
+    shizukuInstalled: Boolean?,
+    onOpenShizukuStore: () -> Boolean,
     isActive: () -> Boolean,
     modifier: Modifier = Modifier,
 ) {
@@ -72,6 +77,8 @@ fun ActionPickerScreen(
         onIntent = { if (isActive()) viewModel.onIntent(it) },
         onOpenApps = onOpenApps,
         onOpenShortcuts = onOpenShortcuts,
+        shizukuInstalled = shizukuInstalled,
+        onOpenShizukuStore = onOpenShizukuStore,
         modifier = modifier,
     )
 }
@@ -103,6 +110,8 @@ private fun ActionPickerContent(
     onIntent: (ActionPickerIntent) -> Unit,
     onOpenApps: () -> Unit,
     onOpenShortcuts: () -> Unit,
+    shizukuInstalled: Boolean?,
+    onOpenShizukuStore: () -> Boolean,
     modifier: Modifier = Modifier,
 ) {
     val canPick = state.selection != PickerSelection.Saving && !state.selectionComplete
@@ -125,14 +134,13 @@ private fun ActionPickerContent(
                     selected = appSelected,
                     onClick = onOpenApps,
                 )
-                ActionTile(
-                    label = R.string.name_shortcuts,
-                    icon = R.drawable.ic_action_shortcut,
+                ShortcutActionTile(
                     modifier = Modifier.weight(1f),
                     enabled = canPick,
-                    opensPicker = true,
+                    installed = shizukuInstalled,
                     selected = shortcutSelected,
-                    onClick = onOpenShortcuts,
+                    onOpenShortcuts = onOpenShortcuts,
+                    onOpenStore = onOpenShizukuStore,
                 )
             }
         }
@@ -291,6 +299,8 @@ private fun ActionPickerPreview() {
             onIntent = {},
             onOpenApps = {},
             onOpenShortcuts = {},
+            shizukuInstalled = true,
+            onOpenShizukuStore = { false },
         )
     }
 }

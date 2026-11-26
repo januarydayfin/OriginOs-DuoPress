@@ -141,8 +141,4 @@ class AndroidShortcutGateway internal constructor(
         val info = infoByPackage[shortcut.packageName]?.get(shortcut.id) ?: return@withContext null
         optionalPickerValue { ShizukuShortcuts.getShortcutIcon(appContext, info)?.let(appContext::pickerIcon) }
     }
-
-    private companion object {
-        const val SHIZUKU_PACKAGE = "moe.shizuku.privileged.api"
-    }
 }

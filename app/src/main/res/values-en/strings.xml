@@ -155,6 +155,12 @@
     <string name="shortcut_picker_no_shortcuts">No shortcuts available</string>
     <string name="shortcut_picker_loading_error">Failed to load shortcuts: %1$s</string>
     <string name="shortcut_shizuku_unavailable">Shortcuts require Shizuku to be installed and started via ADB</string>
+    <string name="shortcut_install_title">Install Shizuku</string>
+    <string name="shortcut_install_message">Shizuku is required to choose and launch shortcuts from other apps.</string>
+    <string name="shortcut_install_required">Shizuku required</string>
+    <string name="shortcut_install_explain">Learn why</string>
+    <string name="shortcut_install_market">Open in store</string>
+    <string name="shortcut_install_market_failed">Could not open the Shizuku page. Search for Shizuku in your app store.</string>
     <string name="shortcut_shizuku_pre_v11">Shortcuts require Shizuku API 11 or newer</string>
     <string name="shortcut_permission_required">Grant DuoPress access in Shizuku</string>
     <string name="shortcut_permission_denied">Shizuku permission was not granted</string>

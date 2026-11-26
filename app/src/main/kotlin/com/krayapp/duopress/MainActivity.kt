@@ -23,6 +23,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.compose.LifecycleEventEffect
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.lifecycle.viewModelScope
@@ -142,6 +143,14 @@ private class LauncherSession(val dependencies: AppDependencies) : ViewModel() {
 @Composable
 private fun LauncherContent(session: LauncherSession, host: PlatformRequestHost) {
     var warnAboutVendor by rememberSaveable { mutableStateOf(session.dependencies.shouldWarnAboutVendor()) }
+    var shizukuInstalled by remember { mutableStateOf<Boolean?>(null) }
+    val activityLifecycle = LocalLifecycleOwner.current.lifecycle
+    LaunchedEffect(activityLifecycle, session) {
+        activityLifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+            shizukuInstalled = null
+            shizukuInstalled = session.dependencies.shizukuInstalled()
+        }
+    }
     AppNavHost(onBack = session::back, menuEditorActions = { entry ->
         val model = session.model<MenuEditorViewModel>(entry)
         val state by model.state.collectAsStateWithLifecycle()
@@ -211,6 +220,8 @@ private fun LauncherContent(session: LauncherSession, host: PlatformRequestHost)
                 val lifecycle by entry.lifecycle.currentStateAsState()
                 MenuEditorScreen(state, model::onIntent, loadIcon = model::icon,
                     showDialogs = lifecycle == Lifecycle.State.RESUMED,
+                    shizukuInstalled = shizukuInstalled,
+                    onOpenShizukuStore = host::openShizukuListing,
                     onOpenApps = {
                         if (navigator.isResumed(entry) && model.state.value.picker == MenuPicker.Grid) {
                             model.onIntent(MenuEditorIntent.OpenApps)
@@ -218,8 +229,11 @@ private fun LauncherContent(session: LauncherSession, host: PlatformRequestHost)
                         }
                     },
                     onOpenShortcuts = {
-                        if (navigator.isResumed(entry) && model.state.value.canAdd && model.state.value.picker == MenuPicker.Grid)
+                        if (shizukuInstalled == true && navigator.isResumed(entry) &&
+                            model.state.value.canAdd && model.state.value.picker == MenuPicker.Grid
+                        ) {
                             navigator.open(AppRoute.MenuShortcutPicker)
+                        }
                     })
             }
             AppRoute.MenuAppPicker -> {
@@ -254,7 +268,9 @@ private fun LauncherContent(session: LauncherSession, host: PlatformRequestHost)
                     ActionPickerScreen(
                         model,
                         onOpenApps = { openPicker(AppRoute.DoublePressAppPicker) },
-                        onOpenShortcuts = { openPicker(AppRoute.ShortcutPicker) },
+                        onOpenShortcuts = { if (shizukuInstalled == true) openPicker(AppRoute.ShortcutPicker) },
+                        shizukuInstalled = shizukuInstalled,
+                        onOpenShizukuStore = host::openShizukuListing,
                         isActive = isActive,
                     )
                 } else {

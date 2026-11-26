@@ -24,6 +24,7 @@ import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.isEnabled
 import androidx.compose.ui.test.isSelectable
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.test.performClick
@@ -48,6 +49,7 @@ import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit.SECONDS
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.asCoroutineDispatcher
 import org.junit.After
@@ -360,7 +362,8 @@ class ComposeAppIntegrationTest {
             )
             val shizuku = FakeShizuku(permissionGateway = gateway)
             MainActivity.dependenciesOverride = {
-                AppDependencies(it, shortcuts = gateway, shortcutControl = shizuku, isSupportedDevice = { true })
+                AppDependencies(it, shortcuts = gateway, shortcutControl = shizuku,
+                    isSupportedDevice = { true }, shizukuInstalled = { true })
             }
             try {
                 launch()
@@ -559,7 +562,8 @@ class ComposeAppIntegrationTest {
                     listOf(ShortcutEntry(packageName, "home", "Shortcut for menu", ShortcutKind.Dynamic, 0))
             }
             MainActivity.dependenciesOverride = {
-                AppDependencies(it, shortcuts = gateway, shortcutControl = FakeShizuku(), isSupportedDevice = { true })
+                AppDependencies(it, shortcuts = gateway, shortcutControl = FakeShizuku(),
+                    isSupportedDevice = { true }, shizukuInstalled = { true })
             }
             launch()
             openMenuEditor()
@@ -592,6 +596,112 @@ class ComposeAppIntegrationTest {
             if (initialMenu == null) prefs.edit().remove("menu_items_json").commit()
             else PrefsHelper.setMenuItemsJson(context, initialMenu)
         }
+    }
+
+    @Test
+    fun missingShizukuExplainsWhyDoublePressShortcutsCannotOpen() {
+        useShizukuInstallation { false }
+        launch()
+        openActionPicker()
+        awaitText(R.string.name_shortcuts)
+        awaitShortcutInstallHint()
+
+        val tile = compose.onNode(text(R.string.name_shortcuts))
+        val click = tile.fetchSemanticsNode().config[SemanticsActions.OnClick]
+        assertEquals(context.getString(R.string.shortcut_install_explain), click.label)
+        compose.runOnIdle { checkNotNull(click.action).invoke() }
+
+        awaitText(R.string.shortcut_install_title)
+        compose.onNode(text(R.string.shortcut_install_market)).assertIsDisplayed()
+        compose.onNode(heading(R.string.shortcut_picker_title)).assertDoesNotExist()
+        compose.onNode(text(R.string.btn_close)).performClick()
+        compose.onNode(text(R.string.shortcut_install_title)).assertDoesNotExist()
+        compose.onNode(heading(R.string.picker_title_main)).assertIsDisplayed()
+    }
+
+    @Test
+    fun missingShizukuKeepsMenuGridAfterClosingExplanation() {
+        val initialMenu = PrefsHelper.getMenuItemsJson(context)
+        try {
+            PrefsHelper.setMenuItemsJson(context, "[]")
+            useShizukuInstallation { false }
+            launch()
+            openMenuEditor()
+            compose.onNode(hasContentDescription(context.getString(R.string.editor_add_action))).performClick()
+            awaitText(R.string.name_shortcuts)
+            compose.onNode(text(R.string.name_shortcuts)).performClick()
+
+            awaitText(R.string.shortcut_install_title)
+            compose.onNode(text(R.string.shortcut_install_market)).assertIsDisplayed()
+            compose.onNode(heading(R.string.shortcut_picker_title)).assertDoesNotExist()
+            compose.onNode(text(R.string.btn_close)).performClick()
+            compose.onNode(text(R.string.picker_section_apps)).assertIsDisplayed()
+            compose.onNode(text(R.string.shortcut_install_title)).assertDoesNotExist()
+            assertEquals("[]", PrefsHelper.getMenuItemsJson(context))
+        } finally {
+            PrefsHelper.setMenuItemsJson(context, initialMenu)
+        }
+    }
+
+    @Test
+    fun installedShizukuPreservesExistingAccessFlow() {
+        val gateway = object : ShortcutGateway {
+            override fun status() = ShizukuShortcuts.Status.UNAVAILABLE
+            override suspend fun shortcuts(packageName: String) = emptyList<ShortcutEntry>()
+        }
+        MainActivity.dependenciesOverride = {
+            AppDependencies(it, shortcuts = gateway, isSupportedDevice = { true }, shizukuInstalled = { true })
+        }
+        launch()
+        openShortcutPicker()
+        awaitText(R.string.shortcut_shizuku_unavailable)
+        compose.onNode(text(R.string.shortcut_install_title)).assertDoesNotExist()
+    }
+
+    @Test
+    fun returningToAppRefreshesShizukuPresence() {
+        val installed = AtomicBoolean(false)
+        useShizukuInstallation(installed::get)
+        launch()
+        openActionPicker()
+        awaitShortcutInstallHint()
+        compose.onNode(text(R.string.name_shortcuts)).performClick()
+        awaitText(R.string.shortcut_install_title)
+
+        scenario.moveToState(Lifecycle.State.STARTED)
+        installed.set(true)
+        scenario.moveToState(Lifecycle.State.RESUMED)
+
+        val availableTile = text(R.string.name_shortcuts) and isEnabled() and shortcutInstallHint().not()
+        compose.waitUntil(5_000) {
+            compose.onAllNodes(availableTile).fetchSemanticsNodes().isNotEmpty() &&
+                compose.onAllNodes(text(R.string.shortcut_install_title)).fetchSemanticsNodes().isEmpty()
+        }
+        compose.onNode(availableTile).performClick()
+        compose.onNode(heading(R.string.shortcut_picker_title)).assertIsDisplayed()
+    }
+
+    @Test
+    fun choosingStoreFromExplanationAttemptsBothLinksIfUnavailable() {
+        useShizukuInstallation { false }
+        launch()
+        openActionPicker()
+        awaitShortcutInstallHint()
+        compose.onNode(text(R.string.name_shortcuts)).performClick()
+
+        val intents = captureIntents { throw ActivityNotFoundException("No store or browser") } doWhile {
+            compose.onNode(text(R.string.shortcut_install_market)).performClick()
+            awaitText(R.string.shortcut_install_market_failed)
+        }
+        assertEquals(
+            listOf(
+                "market://details?id=moe.shizuku.privileged.api",
+                "https://play.google.com/store/apps/details?id=moe.shizuku.privileged.api",
+            ),
+            intents.map(Intent::getDataString),
+        )
+        compose.onNode(text(R.string.btn_close)).performClick()
+        compose.onNode(heading(R.string.picker_title_main)).assertIsDisplayed()
     }
 
     @Test
@@ -687,6 +797,21 @@ class ComposeAppIntegrationTest {
         MainActivity.dependenciesOverride = { AppDependencies(it, handlerProbe = probe, isSupportedDevice = { true }) }
     }
 
+    private fun useShizukuInstallation(probe: suspend () -> Boolean) {
+        MainActivity.dependenciesOverride = {
+            AppDependencies(it, isSupportedDevice = { true }, shizukuInstalled = probe)
+        }
+    }
+
+    private fun shortcutInstallHint() = SemanticsMatcher.expectValue(
+        SemanticsProperties.StateDescription, context.getString(R.string.shortcut_install_required),
+    )
+
+    private fun awaitShortcutInstallHint() {
+        val tile = text(R.string.name_shortcuts) and shortcutInstallHint()
+        compose.waitUntil(5_000) { compose.onAllNodes(tile).fetchSemanticsNodes().isNotEmpty() }
+    }
+
     private fun awaitOtherHandler(): SemanticsMatcher {
         val label = hasText(context.getString(R.string.actions_handler_current, "Other handler"))
         compose.waitUntil(5_000) { compose.onAllNodes(label).fetchSemanticsNodes().isNotEmpty() }
@@ -739,7 +864,8 @@ class ComposeAppIntegrationTest {
 
     private fun fakeShizuku() = FakeShizuku().also { fake ->
         MainActivity.dependenciesOverride = {
-            AppDependencies(it, shortcuts = fake, shortcutControl = fake, isSupportedDevice = { true })
+            AppDependencies(it, shortcuts = fake, shortcutControl = fake,
+                isSupportedDevice = { true }, shizukuInstalled = { true })
         }
     }
 
@@ -757,7 +883,9 @@ class ComposeAppIntegrationTest {
 
     private fun launch() {
         if (MainActivity.dependenciesOverride == null) {
-            MainActivity.dependenciesOverride = { AppDependencies(it, isSupportedDevice = { true }) }
+            MainActivity.dependenciesOverride = {
+                AppDependencies(it, isSupportedDevice = { true }, shizukuInstalled = { true })
+            }
         }
         scenario = ActivityScenario.launch(MainActivity::class.java)
     }

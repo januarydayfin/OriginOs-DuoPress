@@ -10,6 +10,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.krayapp.duopress.R
 import com.krayapp.duopress.ui.common.ActionTile
+import com.krayapp.duopress.ui.common.ShortcutActionTile
 
 @Composable
 internal fun MenuAddDialog(
@@ -17,6 +18,8 @@ internal fun MenuAddDialog(
     onIntent: (MenuEditorIntent) -> Unit,
     onOpenApps: () -> Unit,
     onOpenShortcuts: () -> Unit,
+    shizukuInstalled: Boolean?,
+    onOpenShizukuStore: () -> Boolean,
 ) {
     val back = { onIntent(MenuEditorIntent.BackFromPicker) }
     AlertDialog(
@@ -33,8 +36,13 @@ internal fun MenuAddDialog(
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     ActionTile(R.string.picker_section_apps, R.drawable.ic_action_app, Modifier.weight(1f), state.canAdd,
                         opensPicker = true, onClick = onOpenApps)
-                    ActionTile(R.string.name_shortcuts, R.drawable.ic_action_shortcut, Modifier.weight(1f), state.canAdd,
-                        opensPicker = true, onClick = onOpenShortcuts)
+                    ShortcutActionTile(
+                        modifier = Modifier.weight(1f),
+                        enabled = state.canAdd,
+                        installed = shizukuInstalled,
+                        onOpenShortcuts = onOpenShortcuts,
+                        onOpenStore = onOpenShizukuStore,
+                    )
                 }
                 menuSpecialIds.chunked(2).forEach { pair ->
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
