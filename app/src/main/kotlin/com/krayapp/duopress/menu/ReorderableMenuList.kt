@@ -1,5 +1,6 @@
 package com.krayapp.duopress.menu
 
+import android.os.Build
 import androidx.compose.foundation.interaction.DragInteraction
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.PaddingValues
@@ -8,6 +9,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.dp
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
@@ -23,6 +26,7 @@ internal fun ReorderableMenuList(
 ) {
     val list = rememberLazyListState()
     val move by rememberUpdatedState(onMove)
+    val feedback = LocalHapticFeedback.current
     key(items) {
         val original = remember { items.indices.toList() }
         var order by remember { mutableStateOf(original) }
@@ -41,13 +45,20 @@ internal fun ReorderableMenuList(
             }
         }
         val reorder = rememberReorderableLazyListState(list) { from, to ->
-            if (dragging != null) order = order.toMutableList().apply { add(to.index, removeAt(from.index)) }
+            if (dragging != null && from.index != to.index) {
+                order = order.toMutableList().apply { add(to.index, removeAt(from.index)) }
+                val tick = if (Build.VERSION.SDK_INT >= 34) HapticFeedbackType.SegmentTick else HapticFeedbackType.VirtualKey
+                feedback.performHapticFeedback(tick)
+            }
         }
         LazyColumn(modifier, state = list, contentPadding = PaddingValues(bottom = 92.dp)) {
             items(order, key = { it }) { rawIndex ->
                 ReorderableItem(reorder, key = rawIndex) {
                     row(rawIndex, Modifier.draggableHandle(enabled = enabled && items.size > 1,
-                        interactionSource = interactions, onDragStarted = { dragging = rawIndex }))
+                        interactionSource = interactions, onDragStarted = {
+                            dragging = rawIndex
+                            feedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                        }))
                 }
             }
         }

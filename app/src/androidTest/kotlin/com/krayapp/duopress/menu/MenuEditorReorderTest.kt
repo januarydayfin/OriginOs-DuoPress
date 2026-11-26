@@ -1,6 +1,10 @@
 package com.krayapp.duopress.menu
 
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.hapticfeedback.HapticFeedback
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.*
@@ -16,13 +20,21 @@ class MenuEditorReorderTest {
     private val original = listOf("app:a", "special:camera", "app:a", "app:b")
     private val saved = mutableStateOf(original)
     private val moves = mutableListOf<MenuEditorIntent.Move>()
+    private val pulses = mutableListOf<HapticFeedbackType>()
+    private val recorder = object : HapticFeedback {
+        override fun performHapticFeedback(hapticFeedbackType: HapticFeedbackType) {
+            pulses += hapticFeedbackType
+        }
+    }
     private val context = InstrumentationRegistry.getInstrumentation().targetContext
 
     private fun setup() {
         compose.setContent {
-            MenuEditorScreen(MenuEditorState(menuItems = saved.value, loadingMenu = false), {
-                if (it is MenuEditorIntent.Move) moves.add(it)
-            })
+            CompositionLocalProvider(LocalHapticFeedback provides recorder) {
+                MenuEditorScreen(MenuEditorState(menuItems = saved.value, loadingMenu = false), {
+                    if (it is MenuEditorIntent.Move) moves.add(it)
+                })
+            }
         }
     }
 
@@ -44,14 +56,29 @@ class MenuEditorReorderTest {
         dragSecondDuplicate()
         assertTrue(moves.isEmpty())
         compose.onRoot().performTouchInput { up() }
-        compose.runOnIdle { assertEquals(MenuEditorIntent.Move(2, 1, original), moves.single()) }
+        compose.runOnIdle {
+            assertEquals(MenuEditorIntent.Move(2, 1, original), moves.single())
+            assertDragPulses()
+        }
     }
 
     @Test fun cancelledDragDoesNotSave() {
         setup()
         dragSecondDuplicate()
         compose.onRoot().performTouchInput { cancel() }
-        compose.runOnIdle { assertTrue(moves.isEmpty()) }
+        compose.runOnIdle { assertTrue(moves.isEmpty()); assertDragPulses() }
+    }
+
+    private fun assertDragPulses() {
+        val step = if (android.os.Build.VERSION.SDK_INT >= 34) HapticFeedbackType.SegmentTick else HapticFeedbackType.VirtualKey
+        assertEquals(listOf(HapticFeedbackType.LongPress, step), pulses)
+    }
+
+    @Test fun tapWithoutDragDoesNotPulse() {
+        setup()
+        val tag = context.getString(R.string.editor_drag, "a")
+        compose.onAllNodesWithContentDescription(tag, useUnmergedTree = true)[0].performTouchInput { click() }
+        compose.runOnIdle { assertTrue(pulses.isEmpty()); assertTrue(moves.isEmpty()) }
     }
 
     @Test fun changedSnapshotInvalidatesDrag() {
